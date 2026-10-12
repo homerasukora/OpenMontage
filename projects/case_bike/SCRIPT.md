@@ -4,7 +4,7 @@
 начал с тестового депозита, совмещая с работой; когда доход превысил среднюю зарплату по Индии — увеличил депозит; купил байк.
 
 Озвучка: Kokoro TTS (sherpa-onnx), голос hm_omega (обучен на хинди → индийский акцент), скорость 1.12.
-Музыка: синтезирована (tools/case_reel/music.py), 100 BPM, дроп на «The bike».
+Музыка: синтезирована (tools/case_reel/music.py), 100 BPM, дроп на «He bought it».
 
 ## Текст
 1. 20-year-old Sahil from Bangalore just bought his dream bike.
@@ -15,7 +15,7 @@
 6. He started small. A test deposit, while still driving.
 7. Once his earnings passed India's average salary, he grew his deposit.
 8. Five months in.
-9. The bike.
+9. He bought it.
 10. Want to know how Sahil did it? Message our manager. Link in bio.
 
 ## Монтаж

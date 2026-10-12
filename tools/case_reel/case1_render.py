@@ -240,7 +240,7 @@ def overlays(t, L):
         ctext(L.t, (540, 820), str(n), font("Black", 300), NEON, k)
     elif t < T_H:
         k = appear(t, T_G, 0.08) * (1 - appear(t, T_G + 0.9, 0.25))
-        ctext(L.t, (540, 330), "THE BIKE.", BIG, WHITE, k)
+        if k > 0: L.t.text((540, 330), "HE BOUGHT IT.", font=BIG, fill=rgba(WHITE, k), anchor="mm", stroke_width=7, stroke_fill=(0, 0, 0, int(200 * k)))
         f = 1 - clamp((t - T_G) / 0.25)                             # flash on the drop
         if f > 0: L.fill.alpha_composite(Image.new("RGBA", (W, H), rgba((210, 255, 225), 0.85 * f)))
         for x0, y0, sx, sy in ((60, 60, 1, 1), (W - 60, 60, -1, 1), (60, H - 60, 1, -1), (W - 60, H - 60, -1, -1)):   # neon corners
@@ -255,7 +255,7 @@ def overlays(t, L):
 
 # ---------- subtitles ----------
 GREEN = {"sahil", "bangalore", "dream", "bike", "online", "rickshaw", "years", "koipay", "upi", "commission", "bank",
-         "small", "test", "deposit", "driving", "average", "salary", "five", "months", "manager", "bio", "20-year-old"}
+         "small", "test", "deposit", "driving", "average", "salary", "five", "months", "manager", "bio", "20-year-old", "bought"}
 chunks, cur = [], []
 for w in WORDS:
     cur.append(w)
