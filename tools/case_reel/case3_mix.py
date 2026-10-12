@@ -6,7 +6,6 @@ x = np.arange(int(len(v) * msr / sr)) * sr / msr; v = np.interp(x, np.arange(len
 LT = json.load(open(vj))["lines"]; n = len(m); t = np.arange(n) / msr
 g = np.full(n, 0.55, np.float32)
 for s, e in LT: g[(t >= s - 0.15) & (t < e + 0.15)] = 0.17          # duck under speech
-g[(t >= LT[7][0] - 0.05) & (t < LT[7][0] + 0.35)] = 0.9                    # hit on the drop
 g[t >= LT[-1][1] + 0.1] = 0.6
 k = int(0.12 * msr); g = np.convolve(g, np.ones(k) / k, mode="same")
 out_a = m * g[:, None]

@@ -196,9 +196,13 @@ def background(t, L):
     if t < T6:
         k = (t - T5) / (T6 - T5); fr, _ = photo_frame("rick", 1.25 + 0.08 * k, 545, 620); return fr, True
     if t < T7:
-        k = (t - T6) / (T7 - T6); fr, tr = photo_frame("selfie", 2.4 + 0.15 * k, 670, 640)
+        # wide shot (face + computer), then smooth zoom into the earnings on "earned"
+        te = cue("earned"); zk = ease((t - te + 0.1) / 0.8)
+        z = 1.0 + 0.04 * clamp((t - T6) / 1.5) + 1.45 * zk
+        fx, fy = 480 + (670 - 480) * zk, 700 + (650 - 700) * zk
+        fr, tr = photo_frame("selfie", z, fx, fy)
         x0, y0 = map_pt(585, 652, tr); x1, y1 = map_pt(760, 705, tr)
-        L.n.rounded_rectangle((x0 - 16, y0 - 16, x1 + 16, y1 + 16), 20, outline=rgba(NEON, appear(t, T6 + 0.2)), width=7)
+        L.n.rounded_rectangle((x0 - 16, y0 - 16, x1 + 16, y1 + 16), 20, outline=rgba(NEON, appear(t, te + 0.7)), width=7)
         return fr, True
     if t < T8:
         return NEON_BG.copy(), False
@@ -236,10 +240,8 @@ def overlays(t, L):
         pill(L, 540, 240, "Started with $500", appear(t, cue("$500") - 0.15), filled=True, fnt=TITLE, h=104, padx=44, icon=icon_coin)
         pill(L, 540, 360, "saved from driving", appear(t, cue("saved") - 0.1), fnt=PILL, h=78, icon=icon_rickshaw)
     elif t < T7:
-        f = 1 - clamp((t - T6) / 0.25)
-        if f > 0: L.fill.alpha_composite(Image.new("RGBA", (W, H), rgba((210, 255, 225), 0.8 * f)))
-        pill(L, 540, 240, "MONTH 1", appear(t, T6 + 0.05, 0.15), filled=True, fnt=BIG, h=140, padx=56)
-        pill(L, 540, 385, "Last 7 days: ₹14,312", appear(t, T6 + 0.35), fnt=TITLE, h=100, padx=44)
+        pill(L, 540, 240, "WEEK 1", appear(t, cue("first", line=7) - 0.1, 0.2), filled=True, fnt=BIG, h=140, padx=56)
+        pill(L, 540, 385, "Earned: ₹14,312", appear(t, cue("earned") + 0.6), fnt=TITLE, h=100, padx=44)
     elif t < T8:
         a = 1 - appear(t, T8 - 0.12, 0.12)
         card(L, (110, 300, 970, 1120), a * appear(t, T7))
@@ -256,12 +258,12 @@ def overlays(t, L):
         k1 = appear(t, T8 + 0.1)
         card(L, (110, 900, 970, 1170), k1)
         icon_chat(L.n, 540, 965, 80, k1)
-        ctext(L.t, (540, 1035), "Want to start like Ravi?", LABEL, GREY, k1)
+        ctext(L.t, (540, 1035), "Combine your work with KoiPay", LABEL, GREY, k1)
         pill(L, 540, 1110, "Message our manager", appear(t, cue("message") - 0.1), filled=True, fnt=TITLE, h=100, padx=44)
         pill(L, 540, 240, "Link in bio", appear(t, cue("link") - 0.1), filled=True, fnt=BIG, h=150, padx=60)
 
 # ---------- subtitles ----------
-GREEN = {"ravi", "delhi", "rickshaw", "₹14,000", "rides", "week", "online", "mornings", "evenings", "upi", "koipay", "peaks", "bank", "commission", "$500", "driving", "first", "month", "deposit", "full-time", "manager", "bio"}
+GREEN = {"ravi", "delhi", "rickshaw", "₹14,000", "rides", "week", "online", "mornings", "evenings", "upi", "koipay", "peaks", "bank", "commission", "$500", "driving", "first", "month", "deposit", "full-time", "manager", "bio", "week", "combine", "work", "koipay"}
 chunks, cur = [], []
 for w in WORDS:
     cur.append(w)

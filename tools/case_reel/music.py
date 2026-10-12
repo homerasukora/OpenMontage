@@ -2,6 +2,7 @@
 import sys, json, numpy as np, soundfile as sf
 
 out, DUR, DROP = sys.argv[1], float(sys.argv[2]), float(sys.argv[3])
+FLAT = len(sys.argv) > 4 and sys.argv[4] == "flat"   # no riser / impact / drop: steady groove
 SR = 44100
 BPM = 100.0
 BEAT = 60 / BPM
@@ -59,7 +60,7 @@ ARP = [[69, 72, 76, 72], [65, 69, 72, 69], [64, 67, 72, 67], [62, 67, 71, 67]]
 bar_t, b = OFF, 0
 while bar_t < DUR + BAR:
     chord, root = PROG[b % 4]
-    drop = bar_t >= DROP - 0.01
+    drop = (bar_t >= DROP - 0.01) and not FLAT
     if bar_t + BAR > 0:
         add(pad(chord, BAR + 0.3), bar_t, 0.32 if not drop else 0.26)
         for k in range(4):                                   # beats
@@ -77,13 +78,15 @@ while bar_t < DUR + BAR:
             add(bass808(root - 12, BAR * 0.5), bar_t, 0.55); add(bass808(root - 12, BAR * 0.5), bar_t + 2.5 * BEAT, 0.4)
     bar_t += BAR; b += 1
 
-# riser into the drop + impact
-rd = 2.2
-t = t_(rd); n = rng.standard_normal(len(t)).astype(np.float32)
-riser = hp(n, 600) * (t / rd) ** 2 * 0.35 + np.sin(2 * np.pi * np.cumsum(200 + 900 * (t / rd) ** 2) / SR) * (t / rd) ** 3 * 0.12
-add(riser.astype(np.float32), DROP - rd, 1.0)
-tt = t_(1.5); boom = np.sin(2 * np.pi * np.cumsum(30 + 60 * np.exp(-tt * 8)) / SR) * np.exp(-tt * 2.5)
-add(boom.astype(np.float32), DROP, 0.7)
+if not FLAT:
+    # riser into the drop + impact
+    rd = 2.2
+    t = t_(rd); n = rng.standard_normal(len(t)).astype(np.float32)
+    riser = hp(n, 600) * (t / rd) ** 2 * 0.35 + np.sin(2 * np.pi * np.cumsum(200 + 900 * (t / rd) ** 2) / SR) * (t / rd) ** 3 * 0.12
+    add(riser.astype(np.float32), DROP - rd, 1.0)
+    tt = t_(1.5); boom = np.sin(2 * np.pi * np.cumsum(30 + 60 * np.exp(-tt * 8)) / SR) * np.exp(-tt * 2.5)
+    add(boom.astype(np.float32), DROP, 0.7)
+
 
 # simple stereo reverb (decaying noise IR)
 ir_t = t_(1.2); ir = (rng.standard_normal(len(ir_t)) * np.exp(-ir_t * 4.5)).astype(np.float32); ir /= np.abs(ir).sum() / 6
