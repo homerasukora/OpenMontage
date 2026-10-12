@@ -306,7 +306,7 @@ def speaker(frame, t):
     i = max(k for k, s in enumerate(segs_out) if s[0] <= t + 1e-6)
     z = SEG_ZOOM[i]
     w, h = W / z, SEAM / z
-    cx = 1160 - (1160 - 1010) * (z - 1) / 0.12
+    cx = {0: 905}.get(segs_out[i][2], 955)  # speaker centred per clip (logo not needed in frame)
     cy = SEAM / 2 - (SEAM / 2 - 470) * (z - 1) / 0.12
     box = (int(cx - w / 2), int(cy - h / 2), int(cx - w / 2) + int(w), int(cy - h / 2) + int(h))
     img = Image.fromarray(frame).crop(box)
