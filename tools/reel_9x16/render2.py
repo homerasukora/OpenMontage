@@ -189,11 +189,31 @@ def icon_shield(d, cx, cy, s, a, ok=1.0):
     if ok > 0:
         d.line([(cx - 0.17 * s, cy), (cx - 0.04 * s, cy + 0.14 * s), (cx + 0.2 * s, cy - 0.14 * s)], fill=rgba(NEON, a * ok), width=6)
 
-def icon_warn(d, cx, cy, s, a):
-    p = [(cx, cy - 0.45 * s), (cx + 0.5 * s, cy + 0.4 * s), (cx - 0.5 * s, cy + 0.4 * s)]
-    d.line(p + [p[0]], fill=rgba(NEON, a), width=5, joint="curve")
-    d.line([(cx, cy - 0.15 * s), (cx, cy + 0.12 * s)], fill=rgba(NEON, a), width=6)
-    d.ellipse((cx - 5, cy + 0.24 * s - 5, cx + 5, cy + 0.24 * s + 5), fill=rgba(NEON, a))
+def icon_warn(d, cx, cy, s, a, filled=False):
+    """Warning triangle with '!', drawn 4x supersampled for clean edges."""
+    if a <= 0: return
+    K = 4; size = int(s * 1.2); S_ = size * K
+    tile = Image.new("RGBA", (S_, S_), (0, 0, 0, 0)); td = ImageDraw.Draw(tile)
+    c, r = S_ / 2, 0.5 * s * K
+    pts = [(c, c - r * 0.92), (c + r, c + r * 0.80), (c - r, c + r * 0.80)]
+    col = rgba(NEON, 1.0); w = int(0.10 * s * K) if not filled else 0
+    if filled:
+        td.polygon(pts, fill=col)
+        j = int(0.09 * s * K)                      # round the corners
+        for x, y in pts: td.ellipse((x - j, y - j, x + j, y + j), fill=col)
+        td.line(pts + [pts[0]], fill=col, width=2 * j)
+        mark = (4, 14, 8, 255)
+    else:
+        td.line(pts + [pts[0]], fill=col, width=w, joint="curve")
+        for x, y in pts: td.ellipse((x - w / 2, y - w / 2, x + w / 2, y + w / 2), fill=col)
+        mark = col
+    bw = 0.12 * s * K                              # exclamation bar + dot
+    td.rounded_rectangle((c - bw / 2, c - r * 0.38, c + bw / 2, c + r * 0.30), radius=bw / 2, fill=mark)
+    td.ellipse((c - bw * 0.6, c + r * 0.44, c + bw * 0.6, c + r * 0.44 + bw * 1.2), fill=mark)
+    tile = tile.resize((size, size), Image.LANCZOS)
+    if a < 1:
+        al = tile.getchannel("A").point(lambda v: int(v * a)); tile.putalpha(al)
+    d._image.alpha_composite(tile, (int(cx - size / 2), int(cy - size / 2)))
 
 def icon_store(d, cx, cy, s, a):
     d.line([(cx - 0.5 * s, cy - 0.1 * s), (cx - 0.38 * s, cy - 0.42 * s), (cx + 0.38 * s, cy - 0.42 * s), (cx + 0.5 * s, cy - 0.1 * s), (cx - 0.5 * s, cy - 0.1 * s)], fill=rgba(NEON, a), width=5)
@@ -220,8 +240,8 @@ def scene_hook(L, t, a):
     icon_bank(L.n, CX, 200, 150, k)
     kk = a * appear(t, cue(0, "blocked") - 0.1, 0.2)
     if kk > 0:   # alert badge on the bank
-        L.f.ellipse((CX + 55, 100, CX + 125, 170), fill=rgba((4, 14, 8), kk))
-        icon_warn(L.n, CX + 90, 137, 52, kk)
+        L.f.ellipse((CX + 78, 78, CX + 162, 162), fill=rgba((4, 14, 8), kk))
+        icon_warn(L.n, CX + 120, 122, 58, kk, filled=True)
     ctext(L.t, (CX, 365), "Bank account", TITLE, WHITE, a * appear(t, cue(0, "bank")))
     ctext(L.t, (CX, 445), "blocked?", BIG, NEON, kk)
     k3 = a * appear(t, cue(0, "p2p") - 0.1)
@@ -287,13 +307,17 @@ def scene_checklist(L, t, a):
 
 def scene_cta(L, t, a):
     card(L, CARD, a)
-    icon_chat(L.n, CX, 155, 120, a * appear(t, cue(7, "manager") - 0.4))
-    ctext(L.t, (CX, 290), "Questions about", TITLE, WHITE, a * appear(t, cue(7, "questions") - 0.2))
-    ctext(L.t, (CX, 365), "your security?", TITLE, NEON, a * appear(t, cue(7, "questions")))
-    k = a * appear(t, cue(7, "manager"))
-    if k > 0: pill(L, CX, 470, "Ask our manager", k, filled=True, fnt=TITLE, h=100, padx=44)
-    k3 = a * appear(t, cue(7, "manager") + 0.6)
-    if k3 > 0: pill(L, CX, 568, "Link in bio", k3, fnt=SMALL, h=54)
+    sw = cue(7, "you", 2) - 0.25                   # switch to the link plate on "You can find the link"
+    k1 = a * (1 - ease((t - sw) / 0.25))
+    if k1 > 0:
+        icon_chat(L.n, CX, 170, 120, k1 * appear(t, cue(7, "manager") - 0.4))
+        ctext(L.t, (CX, 305), "Questions about", TITLE, WHITE, k1 * appear(t, cue(7, "questions") - 0.2))
+        ctext(L.t, (CX, 380), "your security?", TITLE, NEON, k1 * appear(t, cue(7, "questions")))
+        k = k1 * appear(t, cue(7, "manager"))
+        if k > 0: pill(L, CX, 500, "Ask our manager", k, filled=True, fnt=TITLE, h=100, padx=44)
+    k2 = a * appear(t, sw + 0.15, 0.3)
+    if k2 > 0:
+        pill(L, CX, 342 + 15 * (1 - k2), "Link in bio", k2, filled=True, fnt=BIG, h=150, padx=64)
 
 SCENES = []
 for clip, fn in [(0, scene_hook), (1, scene_reviews), (2, scene_platform), (3, scene_verified), (6, scene_checklist), (7, scene_cta)]:
