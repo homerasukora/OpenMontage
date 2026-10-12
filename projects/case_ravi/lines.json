@@ -1,19 +1,23 @@
 [
  [
-  "Ravi from Delhi drives a rick-shaw.",
-  "Ravi from Delhi drives a rickshaw."
+  "This rick-shaw driver made over fourteen thousand rupees last week.",
+  "This rickshaw driver made over \u20b914,000 last week \u2014"
  ],
  [
-  "Last week, he also made over fourteen thousand rupees online.",
-  "Last week, he also made over \u20b914,000 online."
+  "But not from rides.",
+  "but not from rides."
  ],
  [
-  "Mornings, he drives the rick-shaw.",
-  "Mornings, he drives the rickshaw."
+  "This is Ravi, from Delhi.",
+  "This is Ravi, from Delhi."
  ],
  [
-  "Evenings, he processes U P I payments with Koi Pay, right when India's payment traffic peaks.",
-  "Evenings, he processes UPI payments with KoiPay, right when India's payment traffic peaks."
+  "Mornings, he drives.",
+  "Mornings, he drives."
+ ],
+ [
+  "Evenings, he processes U P I payments with Koi Pay, right when payment traffic peaks.",
+  "Evenings, he processes UPI payments with KoiPay, right when payment traffic peaks."
  ],
  [
   "Through his own bank account, earning commission on every payment.",
