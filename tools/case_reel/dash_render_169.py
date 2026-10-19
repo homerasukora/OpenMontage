@@ -7,6 +7,11 @@ A = json.load(open(sys.argv[1])); OUT = sys.argv[2]
 PREVIEW = [float(x) for x in sys.argv[3].split(",")] if len(sys.argv) > 3 else None
 D = A["dir"]
 SC = json.load(open(f"{D}/scenes.json")); SCENES = SC["scenes"]; DUR = SC["end"]
+# 16:9: list/overview crops become wide (aspect 0.5, top-anchored) so the dashboard fills the frame; modals stay as they are
+for _sc in SCENES:
+    for _c in _sc.get("crops", []):
+        if _c[2] >= 600 and _c[3] / _c[2] > 0.55 and _sc["name"] not in ("limits", "forwarder", "settle", "filters", "improve", "team"):
+            _c[3] = round(_c[2] * 0.5)
 WORDS = json.load(open(f"{D}/words.json")); LT = json.load(open(f"{D}/vo.json"))["lines"]
 
 W, H, FPS = 1920, 1080, 25
@@ -94,7 +99,7 @@ def photo_cover(name, z, fx, fy):
     return im.crop((int(x0), int(y0), int(x0 + cw), int(y0 + ch))).resize((W, H), Image.BICUBIC)
 
 # ---------- screen panel ----------
-PANEL_W, PANEL_MAXH, PANEL_CY = 1500, 720, 592
+PANEL_W, PANEL_MAXH, PANEL_CY = 1720, 750, 565
 def panel(L, base_img, frame, sc, t, a):
     if a <= 0: return
     k = ease_io((t - sc["s"]) / max(0.1, sc["e"] - sc["s"]))
@@ -218,10 +223,10 @@ def compose(t, frame):
         same_head = [p for p in SCENES if p["e"] == sc["s"] and p.get("head") == sc.get("head")]
         a = 1.0 if same_head else a_in
         panel(L, img, frame, sc, t, max(a, 0.001))
-        pill(L, 960, 110, sc["head"], 1.0 if same_head else appear(t, sc["s"] + 0.05), filled=True, fnt=TITLE, h=100, padx=46)
+        pill(L, 960, 68, sc["head"], 1.0 if same_head else appear(t, sc["s"] + 0.05), filled=True, fnt=font("ExtraBold", 54), h=84, padx=40)
         if "callout" in sc:
             lab, at = sc["callout"]
-            pill(L, 960, 205, lab, appear(t, at - 0.1), fnt=SMALL, h=64, padx=30)
+            pill(L, 960, 144, lab, appear(t, at - 0.1), fnt=font("SemiBold", 30), h=54, padx=26)
     out = img.convert("RGBA")
     out = Image.alpha_composite(out, L.fill)
     glow = L.neon.resize((W // 2, H // 2), Image.BILINEAR).filter(ImageFilter.GaussianBlur(9)).resize((W, H), Image.BILINEAR)
