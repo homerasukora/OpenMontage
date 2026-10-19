@@ -1,4 +1,4 @@
-# KoiPay Trader Dashboard — рекламный ролик (9:16, 79.5 с)
+# KoiPay Trader Dashboard — рекламный ролик (9:16, 82 с)
 
 Аудитория: трейдеры с опытом P2P. Исходник: запись экрана дашборда (7:12, RU-озвучка удалена).
 Озвучка: ElevenLabs, голос «Raj – Indian English Ads & Social», модель eleven_v4, дубль 2 из 4 (75.9 с).
@@ -6,7 +6,7 @@
 
 ## Текст
 1. Done P2P on Binance? Then you know the routine. Chats, screenshots, and checking every payment by hand.
-2. This is the KoiPay trader dashboard. Built for that exact job.
+2. KoiPay is a P2P processing platform that brings everything you need into one place. Here's the trader dashboard.
 3. Home shows your net balance, your staked deposit, and your earnings. For today, 7 days, 30 days, or any custom period.
 4. Sahil from Bangalore watched this number grow for 5 months. Then he bought his first bike.
 5. Connect several bank accounts, and switch each one on or off in one tap. Set daily and monthly limits, by count and by amount.
@@ -18,6 +18,9 @@
 11. Your trader score tracks payout speed, PayIn speed and conversion, and shows you exactly how to improve.
 12. Running a team? Add employees with their own login. They handle payments, but they can't see your earnings.
 13. Experienced in P2P? Get a workspace built for it. Message our manager on Telegram: @koirequestbot
+
+Вступление (стр. 2) — отдельная генерация ElevenLabs тем же голосом, вклеена вместо «This is the KoiPay trader dashboard…».
+В конце под @koirequestbot — зелёная плашка «Start via the link below ↓».
 
 ## Сцены (время ролика → отрезок исходника)
 | Сцена | Время | Исходник | Заголовок / плашка |

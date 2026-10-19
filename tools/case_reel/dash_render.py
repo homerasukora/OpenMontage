@@ -135,6 +135,20 @@ def scene_sahil(img, L, t, sc):
     pill(L, 540, 230, "Sahil · Bangalore", appear(t, sc["s"] + 0.1), filled=True, fnt=TITLE, h=100, padx=44)
     pill(L, 540, 350, "5 months → first bike", appear(t, cue("bought", 3) - 0.1), fnt=PILL, h=80)
 
+BIG_LOGO = None
+def scene_brand(img, L, t, sc):
+    global BIG_LOGO
+    if BIG_LOGO is None:
+        lg = Image.open(A["logo"]).convert("RGB").resize((1040, 1040), Image.LANCZOS)
+        m = Image.new("L", lg.size, 0); ImageDraw.Draw(m).rounded_rectangle((16, 16, 1023, 1023), 180, fill=255)
+        lg.putalpha(m); BIG_LOGO = lg.resize((260, 260), Image.LANCZOS)
+    k = appear(t, sc["s"], 0.35); sz = int(260 * (0.85 + 0.15 * k))
+    lg = BIG_LOGO.resize((sz, sz), Image.LANCZOS); lg.putalpha(lg.getchannel("A").point(lambda v: int(v * k)))
+    L.text.alpha_composite(lg, (540 - sz // 2, 520 - sz // 2))
+    ctext(L.t, (540, 760), "KoiPay", HUGE, WHITE, appear(t, sc["s"] + 0.15))
+    pill(L, 540, 905, "P2P processing platform", appear(t, cue("p2p", 1) - 0.1), filled=True, fnt=TITLE, h=100, padx=44)
+    pill(L, 540, 1030, "Everything in one place", appear(t, cue("everything", 1) - 0.1), fnt=PILL, h=84)
+
 def scene_cta(img, L, t, sc):
     s = sc["s"]
     ctext(L.t, (540, 420), "Experienced in P2P?", TITLE, WHITE, appear(t, s + 0.05))
@@ -149,9 +163,15 @@ def scene_cta(img, L, t, sc):
     if k2 > 0:
         pulse = 1 + 0.03 * math.sin((t - s) * 4)
         pill(L, 540, 1040, "@koirequestbot", k2, filled=True, fnt=font("Black", int(78 * pulse)), h=int(124 * pulse), padx=48)
+    k3 = appear(t, cue("@koirequestbot", 12) + 0.5, 0.3)
+    if k3 > 0:   # bright green "link below" plate
+        txt = "Start via the link below ↓"; fnt = font("Black", 52); tw = L.t.textlength(txt, font=fnt)
+        box = (540 - tw / 2 - 48, 1250 - 50, 540 + tw / 2 + 48, 1250 + 50)
+        L.f.rounded_rectangle(box, 50, fill=rgba(NEON, k3)); L.n.rounded_rectangle(box, 50, outline=rgba(NEON, k3), width=4)
+        ctext(L.t, (540, 1251), txt, fnt, (4, 20, 10), k3)
 
 # ---------- subtitles ----------
-GREEN = {"binance", "koipay", "earnings", "sahil", "bike", "limits", "forwarder", "sms", "payins", "review", "receipt", "payouts",
+GREEN = {"binance", "koipay", "platform", "one", "place", "earnings", "sahil", "bike", "limits", "forwarder", "sms", "payins", "review", "receipt", "payouts",
          "overdue", "proof", "crypto", "usdt", "report", "earning", "utr", "export", "score", "improve", "team", "employees", "earnings", "p2p", "@koirequestbot", "telegram"}
 chunks, cur = [], []
 for w in WORDS:
@@ -187,6 +207,7 @@ def compose(t, frame):
     if sc["name"] == "hook": scene_hook(img, L, t, sc)
     elif sc["name"] == "sahil": scene_sahil(img, L, t, sc)
     elif sc["name"] == "cta": scene_cta(img, L, t, sc)
+    elif sc["name"] == "brand": scene_brand(img, L, t, sc)
     else:
         same_head = [p for p in SCENES if p["e"] == sc["s"] and p.get("head") == sc.get("head")]
         a = 1.0 if same_head else a_in

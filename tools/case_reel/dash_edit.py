@@ -14,7 +14,8 @@ LOGO = [395, 0, 485, 62]             # SURFGATE logo (top-left of the app header
 # crop = [x, y, w, h] in source pixels; keyframes interpolate start -> end over the (sub)scene
 S = [
     dict(name="hook", s=0.0, e=LT[1][0]),
-    dict(name="intro", s=LT[1][0], e=LT[2][0], src=(0.5, 4.5), crops=[[395, 0, 1120, 1080], [395, 20, 1120, 1050]],
+    dict(name="brand", s=LT[1][0], e=cue("here's", 1) - 0.1),
+    dict(name="intro", s=cue("here's", 1) - 0.1, e=LT[2][0], src=(0.5, 4.5), crops=[[395, 0, 1120, 1080], [395, 20, 1120, 1050]],
          head="KoiPay Trader Dashboard"),
     dict(name="home", s=LT[2][0], e=LT[3][0], src=(0.5, 8.5), crops=[[395, 50, 1120, 600], [395, 480, 1120, 600]],
          head="Home", callout=("Today · 7D · 30D · Custom", cue("today", 2))),
