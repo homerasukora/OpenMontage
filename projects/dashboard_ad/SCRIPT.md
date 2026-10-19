@@ -2,7 +2,7 @@
 
 Аудитория: трейдеры с опытом P2P. Исходник: запись экрана дашборда (7:12, RU-озвучка удалена).
 Озвучка: ElevenLabs, голос «Raj – Indian English Ads & Social», модель eleven_v4, дубль 2 из 4 (75.9 с).
-Музыка: синтезированная ровная подложка (tools/case_reel/music.py flat). CTA: Telegram @koirequestbot.
+Музыка: синтезированная ровная подложка (music.py flat); голос и музыка нормализованы до −16 LUFS, музыка −20 дБ под речью (dash_mix.py). CTA: Telegram @koirequestbot.
 
 ## Текст
 1. Done P2P on Binance? Then you know the routine. Chats, screenshots, and checking every payment by hand.

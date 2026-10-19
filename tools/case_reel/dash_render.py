@@ -76,6 +76,18 @@ def neon_bg():
 BG = neon_bg()
 PHOTOS = {k: Image.open(v).convert("RGB") for k, v in A["photos"].items()}
 
+# brand logo (original file, only scaled; rounded corners masked to drop the white JPEG background) + Telegram icon
+LOGO_PX = 92
+_lg = Image.open(A["logo"]).convert("RGB").resize((LOGO_PX * 4, LOGO_PX * 4), Image.LANCZOS)
+_m = Image.new("L", _lg.size, 0); ImageDraw.Draw(_m).rounded_rectangle((6, 6, _lg.width - 7, _lg.height - 7), int(_lg.width * 0.17), fill=255)
+_lg.putalpha(_m); LOGO = _lg.resize((LOGO_PX, LOGO_PX), Image.LANCZOS)
+TG = Image.open(A["telegram"]).convert("RGBA").resize((170, 170), Image.LANCZOS)
+BRAND = font("Bold", 46)
+def draw_brand(img):
+    img.alpha_composite(LOGO, (52, 58))
+    d = ImageDraw.Draw(img); d.text((52 + LOGO_PX + 22, 58 + LOGO_PX // 2), "Koi Pay", font=BRAND, fill=(255, 255, 255, 255), anchor="lm",
+                                  stroke_width=2, stroke_fill=(0, 0, 0, 120))
+
 def photo_cover(name, z, fx, fy):
     im = PHOTOS[name]; pw, ph = im.size; s = max(W / pw, H / ph) * z; cw, ch = W / s, H / s
     x0 = clamp(fx - cw / 2, 0, pw - cw); y0 = clamp(fy - ch / 2, 0, ph - ch)
@@ -130,7 +142,8 @@ def scene_cta(img, L, t, sc):
     k = appear(t, cue("message", 12) - 0.1)
     if k > 0:
         L.f.rounded_rectangle((110, 640, 970, 1160), 40, fill=rgba((6, 16, 10), 0.92 * k)); L.n.rounded_rectangle((110, 640, 970, 1160), 40, outline=rgba(NEON, k), width=4)
-        icon_plane(L.n, 540, 760, 130, k)
+        tg = TG.copy(); tg.putalpha(tg.getchannel("A").point(lambda v: int(v * k)))
+        L.text.alpha_composite(tg, (540 - 85, 760 - 85))
         ctext(L.t, (540, 890), "Message our manager on Telegram", LABEL, WHITE, k)
     k2 = appear(t, cue("@koirequestbot", 12) - 0.2, 0.3)
     if k2 > 0:
@@ -178,15 +191,16 @@ def compose(t, frame):
         same_head = [p for p in SCENES if p["e"] == sc["s"] and p.get("head") == sc.get("head")]
         a = 1.0 if same_head else a_in
         panel(L, img, frame, sc, t, max(a, 0.001))
-        pill(L, 540, 205, sc["head"], 1.0 if same_head else appear(t, sc["s"] + 0.05), filled=True, fnt=TITLE, h=100, padx=46)
+        pill(L, 540, 222, sc["head"], 1.0 if same_head else appear(t, sc["s"] + 0.05), filled=True, fnt=TITLE, h=100, padx=46)
         if "callout" in sc:
             lab, at = sc["callout"]
-            pill(L, 540, 318, lab, appear(t, at - 0.1), fnt=SMALL, h=64, padx=30)
+            pill(L, 540, 332, lab, appear(t, at - 0.1), fnt=SMALL, h=64, padx=30)
     out = img.convert("RGBA")
     out = Image.alpha_composite(out, L.fill)
     glow = L.neon.resize((W // 2, H // 2), Image.BILINEAR).filter(ImageFilter.GaussianBlur(9)).resize((W, H), Image.BILINEAR)
     out = Image.alpha_composite(Image.alpha_composite(out, glow), glow)
     out = Image.alpha_composite(out, L.neon); out = Image.alpha_composite(out, L.text)
+    draw_brand(out)
     draw_subs(t, out)
     return out.convert("RGB")
 
