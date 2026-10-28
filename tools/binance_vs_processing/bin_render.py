@@ -150,9 +150,11 @@ def arrow_v(L, x, y0, y1, prog, a, t):
         f = (t * 1.1) % 1.0; py = y0 + (y1 - y0) * f; L.n.ellipse((x - 6, py - 6, x + 6, py + 6), fill=rgba(NEON, a))
 
 # ---------- media ----------
-RX0, RY0, RX1, RY1 = 1300, 150, 1870, 900
+RX0, RY0, RX1, RY1 = 1255, 150, 1875, 900
 RCX, RW, RH = (RX0 + RX1) // 2, RX1 - RX0, RY1 - RY0
 
+def ptitle(L, y, txt, a, size=46):
+    ctext(L.t, (RCX, y), txt, fit(L.t, txt, "ExtraBold", size, RW - 80), WHITE, a)
 def glass(L, a, box=(RX0, RY0, RX1, RY1)):
     if a <= 0: return
     L.f.rounded_rectangle(box, 36, fill=(6, 16, 10, int(240 * a))); L.n.rounded_rectangle(box, 36, outline=rgba(NEON, 0.9 * a), width=4)
@@ -182,7 +184,7 @@ def blogo(size, a):
 # KoiPay dashboard clips (personal data / third-party branding blurred, then cropped) — shown full-screen
 SC = {s["name"]: s for s in json.load(open(A["dash_scenes"]))["scenes"]}
 DCROP = {"home": (395, 515, 1120, 450), "forwarder": (640, 260, 640, 584), "payouts": (395, 100, 1120, 520)}
-DMAXW, DMAXH = 1340, 640
+DMAXW, DMAXH = 1320, 720
 DASH = {}
 for nm, (x, y, w, h) in DCROP.items():
     sc = SC[nm]; s_ = min(DMAXW / w, DMAXH / h); cw, ch = int(w * s_), int(h * s_)
@@ -206,15 +208,15 @@ def fit(d, txt, style, size, maxw):
     while d.textlength(txt, font=f) > maxw and size > 22: size -= 2; f = font(style, size)
     return f
 def row(L, y, txt, ic, k, base, h=100, col=WHITE, edge=NEON, fill=(10, 26, 16), fnt=LABEL, t=0.0):
-    fnt = fit(L.t, txt, "ExtraBold" if fnt is not LABEL else "SemiBold", fnt.size, RX1 - 30 - 24 - (RX0 + 145))
+    fnt = fit(L.t, txt, "ExtraBold" if fnt is not LABEL else "SemiBold", fnt.size, RX1 - 30 - 40 - (RX0 + 140))
     box = (RX0 + 30, y - h / 2, RX1 - 30, y + h / 2)
     L.f.rounded_rectangle(box, 26, fill=rgba(fill if k > 0.05 else (6, 16, 10), max(k, 0.96 * base))); L.n.rounded_rectangle(box, 26, outline=rgba(edge, k), width=3)
-    if ic is icon_wait: ic(L.n, RX0 + 90, y, 56, k, t)
-    elif ic: ic(L.n, RX0 + 90, y, 56, k)
-    ctext(L.t, (RX0 + 145, y), txt, fnt, col, k, "lm")
+    if ic is icon_wait: ic(L.n, RX0 + 88, y, 54, k, t)
+    elif ic: ic(L.n, RX0 + 88, y, 54, k)
+    ctext(L.t, (RX0 + 140, y), txt, fnt, col, k, "lm")
 
 # ---------- camera ----------
-SIDE = (1.15, 1920 - 1920 / 1.15 / 2, 540); WIDE = (1.0, 960, 540); FACE = (1.42, 880, 470)
+SIDE = (1.18, 1920 - 1920 / 1.18 / 2, 540); WIDE = (1.0, 960, 540); FACE = (1.42, 880, 470)
 def cam_keys():
     k = []
     def at(t, st, d=0.55): k.append((t, st, d))
@@ -250,7 +252,7 @@ def _fs_bg():
     arr += (np.exp(-(((xx - W / 2) / 900) ** 2 + ((yy - H / 2) / 520) ** 2)) * 0.45)[..., None] * np.array(NEON, np.float32)
     return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
 FS_BG = _fs_bg()
-PIP_C, PIP_R = (270, 700), 175
+PIP_C, PIP_R = (270, 765), 160
 def pip(img, L, frame, a):
     if a <= 0: return
     d = 2 * PIP_R; src = frame.resize((d, d), Image.BICUBIC, box=(880 - 330, 470 - 330, 880 + 330, 470 + 330))
@@ -293,16 +295,31 @@ def fs_rates(img, L, t, t0):
         ctext(L.t, (cx, 610 + dy), "on ₹1,00,000", font("Bold", 48), WHITE, kb); ctext(L.t, (cx, 705 + dy), res, font("Black", 86), NEON, kb)
     ctext(L.t, (X, 870), "Your manager confirms your exact terms", font("SemiBold", 36), GREY, appear(t, cue("so", 7)))
 
+def wrap(d, txt, fnt, maxw):
+    out, cur = [], ""
+    for w in txt.split():
+        nxt = (cur + " " + w).strip()
+        if d.textlength(nxt, font=fnt) <= maxw or not cur: cur = nxt
+        else: out.append(cur); cur = w
+    return out + [cur]
+def callouts(L, items, t, k, x0=60, x1=490, y=190, ymax=575):
+    for txt, at in items:
+        kc = k * appear(t, at - 0.15, 0.25)
+        if kc <= 0: continue
+        fnt = font("Bold", 34); lines = wrap(L.t, txt, fnt, x1 - x0 - 56)
+        h = 26 + 42 * len(lines)
+        if y + h > ymax: break
+        L.f.rounded_rectangle((x0, y, x1, y + h), 24, fill=(6, 18, 10, int(235 * kc))); L.n.rounded_rectangle((x0, y, x1, y + h), 24, outline=rgba(NEON, kc), width=3)
+        for j, ln in enumerate(lines): ctext(L.t, (x0 + 28, y + 13 + 21 + 42 * j), ln, fnt, WHITE, kc, "lm")
+        y += h + 14
+
 def fs_dash(nm, title, calls):
     def f(img, L, t, t0):
-        k = appear(t, t0 + 0.3, 0.3); pic = dash_img(nm, t - t0); X = 1180
-        y = 560 - pic.height / 2 + 20 + 24 * (1 - k)
+        k = appear(t, t0 + 0.3, 0.3); pic = dash_img(nm, t - t0); X = 1195
+        y = 552 - pic.height / 2 + 24 * (1 - k)
         paste_card(img, L, pic, X - pic.width / 2, y, k, r=24)
-        pill(L, X, y - 52, title, k, filled=True, fnt=font("ExtraBold", 46), h=84, padx=40)
-        cur = [c for c in calls if t >= c[1] - 0.15]
-        if cur:
-            lab, at = cur[-1]; kc = k * appear(t, at - 0.15, 0.2)
-            pill(L, X, y + pic.height + 4, lab, kc, fnt=font("Bold", 40), h=72, padx=34)
+        pill(L, X, y - 58, title, k, filled=True, fnt=font("ExtraBold", 46), h=84, padx=40)
+        callouts(L, calls, t, k)
     return f
 
 def endcard(L, t, t0):
@@ -332,7 +349,7 @@ def overlays(img, L, t, i):
         tb, tp = cue("binance", 0), cue("processing", 0)
         A_ = win(t, tb - 0.1, tp - 0.3)
         glass(L, A_)
-        L.text.alpha_composite(blogo(150, A_), (RCX - 75, RY0 + 40)); ctext(L.t, (RCX, RY0 + 245), "Binance P2P routine", H2F, WHITE, A_)
+        L.text.alpha_composite(blogo(150, A_), (RCX - 75, RY0 + 40)); ptitle(L, RY0 + 245, "Binance P2P routine", A_)
         items = [("Update your ad price", icon_refresh, cue("update", 0)), ("Fight for the top spot", icon_top, cue("fight", 0)), ("Wait for a match…", icon_wait, cue("wait", 0))]
         for j, (lab, ic, at) in enumerate(items): row(L, RY0 + 380 + j * 130, lab, ic, A_ * appear(t, at - 0.15), A_, t=t)
     elif i == 1:
@@ -349,29 +366,29 @@ def overlays(img, L, t, i):
         pill(L, RCX, 900, "Your margin = spread", a * appear(t, cue("spread", 1) - 0.15), filled=True, fnt=PILL, h=84)
     elif i == 3:
         A_ = a * appear(t, cue("and", 3) + 0.45)
-        glass(L, A_); ctext(L.t, (RCX, RY0 + 75), "On P2P, risks are yours", H2F, WHITE, A_)
+        glass(L, A_); ptitle(L, RY0 + 75, "On P2P, risks are yours", A_)
         items = [("Price wars", "price"), ("Slow days", "slow"), ("“Paid” without paying", "buyers"), ("Appeals", "appeals")]
-        for j, (lab, w) in enumerate(items): row(L, RY0 + 190 + j * 118, lab, icon_x, A_ * appear(t, cue(w, 3) - 0.15), A_, h=96)
+        for j, (lab, w) in enumerate(items): row(L, RY0 + 185 + j * 112, lab, icon_x, A_ * appear(t, cue(w, 3) - 0.15), A_, h=92)
         kf = A_ * appear(t, cue("frozen", 3) - 0.3)
-        y = RY0 + 190 + 4 * 118 + 30
-        row(L, y, "Bank account frozen", icon_x, kf, A_, h=110, edge=RED, fill=(48, 12, 12), fnt=font("ExtraBold", 42))
+        y = RY0 + 185 + 4 * 112 + 22
+        row(L, y, "Bank account frozen", icon_x, kf, A_, h=104, edge=RED, fill=(48, 12, 12), fnt=font("ExtraBold", 40))
     elif i == 4:
         tm = cue("merchants", 4); A_ = a * appear(t, cue("removes", 4) + 0.3)
         glass(L, A_)
         kA = A_ * (1 - appear(t, tm - 0.35, 0.25))
         if kA > 0:
-            ctext(L.t, (RCX, RY0 + 75), "Processing removes", H2F, WHITE, kA)
+            ptitle(L, RY0 + 75, "Processing removes", kA)
             for j, lab in enumerate(("Marketplace layer", "Ads & price updates", "Hunting for buyers")):
                 kk = kA * appear(t, cue("removes", 4) + 0.35 + 0.35 * j); y = RY0 + 230 + j * 150
-                row(L, y, lab, icon_x, kk, kA, h=110, col=GREY)
-                if kk > 0.5: L.t.line([(RX0 + 145, y + 2), (RX0 + 145 + (L.t.textlength(lab, font=LABEL)) * ease((kk - 0.5) * 2), y + 2)], fill=rgba(RED, kk), width=5)
+                row(L, y, lab, icon_x, kk, A_, h=110, col=GREY)
+                if kk > 0.5: L.t.line([(RX0 + 140, y + 2), (RX0 + 140 + (L.t.textlength(lab, font=fit(L.t, lab, "SemiBold", 40, RX1 - 30 - 40 - (RX0 + 140)))) * ease((kk - 0.5) * 2), y + 2)], fill=rgba(RED, kk), width=5)
         kB = A_ * appear(t, tm - 0.2, 0.25)
         if kB > 0:
-            ctext(L.t, (RCX, RY0 + 75), "How requests reach you", H2F, WHITE, kB)
+            ptitle(L, RY0 + 75, "How requests reach you", kB)
             nodes = [("Merchant request", icon_store, tm), ("KoiPay routing", icon_route, cue("routes", 4)), ("You, the trader", icon_phone, cue("traders", 4))]
             ys = [RY0 + 220, RY0 + 420, RY0 + 620]
             for j, (lab, ic, at) in enumerate(nodes):
-                k = kB * appear(t, at - 0.15, 0.25); row(L, ys[j], lab, ic, k, kB, h=110)
+                k = kB * appear(t, at - 0.15, 0.25); row(L, ys[j], lab, ic, k, A_, h=110)
                 if j == 1 and k > 0: L.text.alpha_composite(LOGO_S(k), (RX1 - 110, ys[j] - 33))
                 if j: arrow_v(L, RCX, ys[j - 1] + 58, ys[j] - 58, ease((t - at + 0.15) / 0.3), kB, t)
     elif i == 5:
@@ -389,7 +406,7 @@ def overlays(img, L, t, i):
         tp = cue("payout", 6)
         kA = a * (1 - appear(t, tp - 0.3, 0.25))
         if kA > 0:
-            glass(L, kA); ctext(L.t, (RCX, RY0 + 75), "After you confirm", H2F, WHITE, kA)
+            glass(L, kA); ptitle(L, RY0 + 75, "After you confirm", kA)
             items = [("Anti-Fraud check", icon_shield, cue("anti-fraud", 6)), ("Merchant callback", icon_bell, cue("callback", 6)), ("Commission in dashboard", icon_check, cue("commission", 6))]
             for j, (lab, ic, at) in enumerate(items):
                 k = kA * appear(t, at - 0.15); y = RY0 + 230 + j * 190; row(L, y, lab, ic, k, kA, h=120)
@@ -397,27 +414,27 @@ def overlays(img, L, t, i):
     elif i == 8:
         A_ = a * appear(t, cue("volume", 8) - 0.1)
         glass(L, A_)
-        ctext(L.t, (RCX, RY0 + 80), "You earn per", LABEL, GREY, A_); ctext(L.t, (RCX, RY0 + 145), "completed operation", H2F, WHITE, A_)
-        k = A_ * appear(t, cue("volume", 8)); y = RY0 + 290
-        row(L, y, "Volume not guaranteed", icon_x, k, A_, h=110, edge=RED, fill=(40, 12, 12))
-        ctext(L.t, (RCX, RY0 + 410), "It depends on", LABEL, GREY, A_ * appear(t, cue("depends", 8) - 0.1))
-        row(L, RY0 + 500, "KoiPay routing", icon_route, A_ * appear(t, cue("routing", 8) - 0.15), A_, h=96)
-        row(L, RY0 + 610, "Your limits", icon_bank, A_ * appear(t, cue("limits", 8) - 0.15), A_, h=96)
-        pill(L, RCX, RY1 - 60, "Manager confirms your rates", A_ * appear(t, cue("manager", 8) - 0.1), filled=True, fnt=font("Bold", 38), h=80, padx=30)
+        ctext(L.t, (RCX, RY0 + 70), "You earn per", LABEL, GREY, A_); ptitle(L, RY0 + 130, "completed operation", A_)
+        k = A_ * appear(t, cue("volume", 8)); y = RY0 + 250
+        row(L, y, "Volume not guaranteed", icon_x, k, A_, h=100, edge=RED, fill=(40, 12, 12))
+        ctext(L.t, (RCX, RY0 + 360), "It depends on", LABEL, GREY, A_ * appear(t, cue("depends", 8) - 0.1))
+        row(L, RY0 + 440, "KoiPay routing", icon_route, A_ * appear(t, cue("routing", 8) - 0.15), A_, h=90)
+        row(L, RY0 + 545, "Your limits", icon_bank, A_ * appear(t, cue("limits", 8) - 0.15), A_, h=90)
+        pill(L, RCX, RY0 + 665, "Manager confirms your rates", A_ * appear(t, cue("manager", 8) - 0.1), filled=True, fnt=font("Bold", 36), h=76, padx=28)
     elif i == 9:
         tt = cue("telegram", 9)
         kB = a * appear(t, tt - 0.1, 0.3)
         if kB > 0:
             glass(L, kB)
             tg = TG.copy(); tg.putalpha(tg.getchannel("A").point(lambda v: int(v * kB))); L.text.alpha_composite(tg, (RCX - 85, RY0 + 50))
-            ctext(L.t, (RCX, RY0 + 280), "Telegram bot", H2F, WHITE, kB)
+            ptitle(L, RY0 + 280, "Telegram bot", kB)
             row(L, RY0 + 410, "New request alerts", icon_bell, kB * appear(t, cue("alerts", 9) - 0.1), kB, h=104)
             k24 = kB * appear(t, cue("24/7", 9) - 0.3)
             ctext(L.t, (RCX, RY0 + 575), "24/7", font("Black", 120), NEON, k24); ctext(L.t, (RCX, RY0 + 670), "support", TITLE, WHITE, k24)
     elif i == 10:
         A_ = a * appear(t, cue("discuss", 10) - 0.05)
         glass(L, A_)
-        ctext(L.t, (RCX, RY0 + 80), "Before you start", H2F, WHITE, A_)
+        ptitle(L, RY0 + 80, "Before you start", A_)
         items = [("Business bank accounts", icon_bank, "bank"), ("Working funds", icon_coin, "working"), ("Your hours", icon_clock, "hours")]
         for j, (lab, ic, w) in enumerate(items): row(L, RY0 + 220 + j * 135, lab, ic, A_ * appear(t, cue(w, 10) - 0.15), A_, h=110)
         pill(L, RCX, RY1 - 140, "With your manager", A_ * appear(t, cue("manager", 10) - 0.15), filled=True, fnt=PILL, h=80)
