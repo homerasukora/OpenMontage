@@ -162,7 +162,7 @@ def hook(img, L, t):
     pic, _ = cover(PHOTOS["rick"], cw, ch, 1.02 + 0.05 * t / CUTS[1], 520, 640)
     m = Image.new("L", (cw, ch), 0); ImageDraw.Draw(m).rounded_rectangle((0, 0, cw - 1, ch - 1), 30, fill=int(255 * k))
     img.paste(pic, (240, 120), m); L.n.rounded_rectangle((237, 117, 243 + cw, 123 + ch), 32, outline=rgba(NEON, k), width=4)
-    pill(L, 540, 170, "Rickshaw driver · Delhi", appear(t, cue("rickshaw", 0) - 0.1), filled=True, fnt=PILL, h=76)
+    pill(L, 540, 860, "Rickshaw driver · Delhi", appear(t, cue("rickshaw", 0) - 0.1), filled=True, fnt=PILL, h=76)
     at = cue("₹14,000", 0); kk = appear(t, at - 0.15, 0.2)
     n = int(14000 * ease((t - at + 0.15) / 0.9)); txt = (f"₹{n // 1000},{n % 1000:03d}" if n >= 1000 else f"₹{n}") + ("+" if n >= 14000 else "")
     if kk > 0: L.t.text((1340, 420), txt, font=font("Black", 150), fill=rgba(NEON, kk), anchor="mm", stroke_width=8, stroke_fill=(0, 0, 0, int(190 * kk)))
@@ -177,7 +177,7 @@ def overlays(img, L, t, i):
         tr, te = cue("ravi", 1), cue("evening", 1)
         if t >= tr - 0.2:
             if t < te - 0.1: pic = video_still(A["rk2"], 2.5 + (t - tr), RW, RH); lab, ic = "Morning · rickshaw", None
-            else: pic = video_still(A["rk1"], 1.5 + (t - te), RW, RH); lab = "Evening · processing"
+            else: pic, _ = cover(PHOTOS["selfie"], RW, RH, 1.05 + 0.06 * (t - te), 520, 700); lab = "Evening · processing"
             ka = a * appear(t, tr - 0.2); media_card(img, L, pic, ka)
             pill(L, RCX, RY1 - 70, lab, ka, filled=True, fnt=PILL, h=80)
     elif i == 2:
@@ -231,7 +231,7 @@ def overlays(img, L, t, i):
             k = A_ * appear(t, at, 0.25)
             box = (RX0 + 50, ys[j] - 58, RX1 - 50, ys[j] + 58)
             L.f.rounded_rectangle(box, 28, fill=rgba((10, 26, 16) if k > 0.05 else (6, 16, 10), max(k, 0.965 * A_))); L.n.rounded_rectangle(box, 28, outline=rgba(NEON, k), width=3)
-            ic(L.n, RX0 + 120, ys[j], 66, k); ctext(L.t, (RX0 + 185, ys[j]), lab, PILL, WHITE, k, "lm")
+            ic(L.n, RX0 + 115, ys[j], 62, k); ctext(L.t, (RX0 + 175, ys[j]), lab, LABEL, WHITE, k, "lm")
             if j: arrow_v(L, RCX, ys[j - 1] + 60, ys[j] - 60, ease((t - at + 0.1) / 0.3), A_, t)
         kc = A_ * appear(t, cue("commission", 7) - 0.1)
         if kc > 0:
@@ -250,11 +250,11 @@ def overlays(img, L, t, i):
         if i == 9: A_ = seg_a(t, 9) if t < CUTS[10] else 1
         else: A_ = 1 - ease((t - (CUTS[11] - 0.12)) / 0.12)
         glass(L, A_)
-        tg = TG.copy(); tg.putalpha(tg.getchannel("A").point(lambda v: int(v * A_))); L.text.alpha_composite(tg, (RCX - 85, RY0 + 50))
-        ctext(L.t, (RCX, RY0 + 280), "New to P2P?", LABEL, GREY, A_)
-        ctext(L.t, (RCX, RY0 + 350), "Free training", TITLE, WHITE, A_)
-        pill(L, RCX, RY0 + 470, "@koiedubot", A_ * appear(t, cue("free", 9) - 0.1), filled=True, fnt=font("Black", 64), h=110, padx=46)
-        ctext(L.t, (RCX, RY0 + 590), "PayIns · PayOuts · Dashboard", PILL, NEON, A_ * appear(t, cue("you'll", 9) - 0.1))
+        tg = TG.copy(); tg.putalpha(tg.getchannel("A").point(lambda v: int(v * A_))); L.text.alpha_composite(tg, (RCX - 85, RY0 + 40))
+        ctext(L.t, (RCX, RY0 + 250), "New to P2P?", LABEL, GREY, A_)
+        ctext(L.t, (RCX, RY0 + 315), "Free training", TITLE, WHITE, A_)
+        pill(L, RCX, RY0 + 430, "@koiedubot", A_ * appear(t, cue("free", 9) - 0.1), filled=True, fnt=font("Black", 64), h=110, padx=46)
+        ctext(L.t, (RCX, RY0 + 545), "PayIns · PayOuts · Dashboard", LABEL, NEON, A_ * appear(t, cue("you'll", 9) - 0.1))
         k3 = A_ * appear(t, cue("link", 10) - 0.2) if i == 10 else 0
         if k3 > 0:
             txt = "Link in the description ↓"; fnt = font("Black", 46); tw = L.t.textlength(txt, font=fnt)
@@ -262,26 +262,41 @@ def overlays(img, L, t, i):
             L.f.rounded_rectangle(box, 44, fill=rgba(NEON, k3)); ctext(L.t, (RCX, RY1 - 99), txt, fnt, (4, 20, 10), k3)
     elif i == 11:
         glass(L, a)
-        tg = TG.copy(); tg.putalpha(tg.getchannel("A").point(lambda v: int(v * a))); L.text.alpha_composite(tg, (RCX - 85, RY0 + 50))
-        ctext(L.t, (RCX, RY0 + 280), "Already experienced?", LABEL, GREY, a)
-        ctext(L.t, (RCX, RY0 + 350), "Start working", TITLE, WHITE, a)
-        pill(L, RCX, RY0 + 470, "@koipayp2p2bot", a * appear(t, cue("second", 11) - 0.1), filled=True, fnt=font("Black", 58), h=110, padx=44)
+        tg = TG.copy(); tg.putalpha(tg.getchannel("A").point(lambda v: int(v * a))); L.text.alpha_composite(tg, (RCX - 85, RY0 + 40))
+        ctext(L.t, (RCX, RY0 + 250), "Already experienced?", LABEL, GREY, a)
+        ctext(L.t, (RCX, RY0 + 315), "Start working", TITLE, WHITE, a)
+        pill(L, RCX, RY0 + 430, "@koipayp2p2bot", a * appear(t, cue("second", 11) - 0.1), filled=True, fnt=font("Black", 58), h=110, padx=44)
         for j, lab in enumerate(("Bank requirements", "Working funds", "Onboarding")):
-            ctext(L.t, (RCX, RY0 + 580 + j * 55), "✓ " + lab, PILL, NEON, a * appear(t, cue("manager", 11) + 0.4 * j))
-    elif i == 12:
-        k = appear(t, CUTS[12] + 0.05)
-        glass(L, k)
-        ctext(L.t, (RCX, RY0 + 80), "Start with KoiPay", TITLE, WHITE, k)
-        tg = TG.resize((110, 110), Image.LANCZOS); tg.putalpha(tg.getchannel("A").point(lambda v: int(v * k)))
-        for j, (tagl, user) in enumerate((("Free training · new to P2P", "@koiedubot"), ("Start working · experienced", "@koipayp2p2bot"))):
-            y = RY0 + 230 + j * 220
-            L.text.alpha_composite(tg, (RX0 + 60, y - 55))
-            ctext(L.t, (RX0 + 200, y - 30), tagl, SMALL, GREY, k, "lm"); ctext(L.t, (RX0 + 200, y + 25), user, font("Black", 48), NEON, k, "lm")
-        k3 = appear(t, cue("description", 12) - 0.2)
-        if k3 > 0:
-            txt = "Links in the description ↓"; fnt = font("Black", 46); tw = L.t.textlength(txt, font=fnt)
-            box = (RCX - tw / 2 - 40, RY1 - 110 - 44, RCX + tw / 2 + 40, RY1 - 110 + 44)
-            L.f.rounded_rectangle(box, 44, fill=rgba(NEON, k3)); ctext(L.t, (RCX, RY1 - 109), txt, fnt, (4, 20, 10), k3)
+            ctext(L.t, (RCX, RY0 + 545 + j * 60), "✓ " + lab, LABEL, NEON, a * appear(t, cue("manager", 11) + 0.4 * j))
+
+def endcard(img, L, t):
+    img.paste(END_BG)
+    k0 = appear(t, CUTS[12], 0.35)
+    ctext(L.t, (960, 150), "Start with KoiPay", font("Black", 84), WHITE, k0)
+    cards = [("NEW TO P2P", "Free training", "@koiedubot", 200, CUTS[12] + 0.15),
+             ("EXPERIENCED", "Start working", "@koipayp2p2bot", 1020, CUTS[12] + 0.45)]
+    tg = TG.resize((150, 150), Image.LANCZOS)
+    for tag, lab, user, x0, at in cards:
+        k = appear(t, at, 0.35); dy = int(30 * (1 - k)); box = (x0, 235 + dy, x0 + 700, 785 + dy); cx = x0 + 350
+        L.f.rounded_rectangle(box, 40, fill=(6, 16, 10, int(246 * k))); L.n.rounded_rectangle(box, 40, outline=rgba(NEON, k), width=5)
+        fnt = font("Black", 44); tw = L.t.textlength(tag, font=fnt)                       # highlighted audience tag
+        L.f.rounded_rectangle((cx - tw / 2 - 34, 265 + dy, cx + tw / 2 + 34, 345 + dy), 40, fill=rgba(NEON, k))
+        ctext(L.t, (cx, 306 + dy), tag, fnt, (4, 20, 10), k)
+        g = tg.copy(); g.putalpha(g.getchannel("A").point(lambda v: int(v * k))); L.text.alpha_composite(g, (cx - 75, 380 + dy))
+        ctext(L.t, (cx, 590 + dy), lab, TITLE, WHITE, k)
+        pill(L, cx, 695 + dy, user, k, filled=True, fnt=font("Black", 54 if len(user) < 12 else 48), h=100, padx=40)
+    k3 = appear(t, cue("description", 12) - 0.2)
+    if k3 > 0:
+        txt = "Links in the description ↓"; fnt = font("Black", 50); tw = L.t.textlength(txt, font=fnt)
+        L.f.rounded_rectangle((960 - tw / 2 - 44, 825, 960 + tw / 2 + 44, 905), 40, fill=rgba(NEON, k3))
+        ctext(L.t, (960, 866), txt, fnt, (4, 20, 10), k3)
+
+def _end_bg():
+    arr = np.asarray(BG).astype(np.float32)
+    yy, xx = np.mgrid[0:H, 0:W]
+    arr += (np.exp(-(((xx - W / 2) / 900) ** 2 + ((yy - H / 2) / 520) ** 2)) * 0.45)[..., None] * np.array(NEON, np.float32)
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+END_BG = _end_bg()
 
 # ---------- subtitles ----------
 GREEN = {"rickshaw", "delhi", "₹14,000", "rides", "siya", "koipay", "ravi", "evening", "$500", "week", "full-time", "₹1", "lakh", "promise", "possible", "₹2–4", "volume", "p2p", "upi", "commission", "payin", "payout", "incoming", "outgoing", "free", "training", "description", "experienced", "manager", "onboarding", "links"}
@@ -317,6 +332,8 @@ def compose(t, frame):
     L = Layers(); i = seg_of(t)
     if i == 0:
         img = Image.new("RGB", (W, H)); hook(img, L, t)
+    elif i == 12:
+        img = Image.new("RGB", (W, H)); endcard(img, L, t)
     else:
         if i in CLOSE:
             z = 1.10; cx, cy = 760, 470; w_, h_ = W / z, H / z
