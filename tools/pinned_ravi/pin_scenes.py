@@ -61,8 +61,19 @@ def _dash(nm, crop, cw):
     return out
 RPX0, RPY0, RPX1, RPY1 = 1270, 190, 1880, 880            # right-hand panel
 RPW, RPCX = RPX1 - RPX0, (RPX0 + RPX1) // 2
-DASH_HOME = _dash("home", (395, 515, 1120, 450), RPW - 60)
-def dash_home(ts): return Image.fromarray(DASH_HOME[int(clamp(ts * 25, 0, len(DASH_HOME) - 1))])
+DMAXW, DMAXH = 1320, 690
+def _dash_fit(nm, crop, t_from=0.0, dur=3.0):
+    x, y, w, h = crop; s_ = min(DMAXW / w, DMAXH / h); cw, ch = int(w * s_), int(h * s_); sc = SC[nm]
+    fr = decode(["-ss", f"{sc['s'] + t_from:.3f}", "-t", f"{dur:.3f}", "-i", A["dash_base"], "-vf", "fps=25"], 1920, 1080)
+    out = []
+    for f in fr:
+        im = Image.fromarray(f)
+        for b in sc["blur"] + [[395, 0, 500, 66]]: im.paste(im.crop(tuple(b)).filter(ImageFilter.GaussianBlur(18)), tuple(b[:2]))   # SurfGate logo + personal data
+        out.append(np.asarray(im.crop((x, y, x + w, y + h)).resize((cw, ch), Image.LANCZOS)))
+    return out
+DM = {"home": _dash_fit("home", (395, 515, 800, 330)), "requests": _dash_fit("payins", (395, 62, 1120, 420), 0.5),
+      "history": _dash_fit("report", (395, 62, 1120, 560), 0.5), "commission": _dash_fit("report", (395, 700, 1120, 360), 1.5)}
+def dm_img(key, ts): fr = DM[key]; return Image.fromarray(fr[int(clamp(ts * 25, 0, len(fr) - 1))])
 def _fs_bg():
     arr = np.asarray(BG).astype(np.float32); yy, xx = np.mgrid[0:H, 0:W]
     arr += (np.exp(-(((xx - W / 2) / 900) ** 2 + ((yy - H / 2) / 520) ** 2)) * 0.45)[..., None] * np.array(NEON, np.float32)
@@ -119,15 +130,13 @@ def story_panel(img, L, t):
             ctext(L.t, (RPX0 + 215, y), lab, fit(L.t, lab, "Bold", 42, RPX1 - 80 - (RPX0 + 215)), WHITE, kk, "lm")
     elif kind == "income":
         glass(L, (RPX0, y0, RPX1, RPY1), k)
-        ctext(L.t, (RPCX, y0 + 90), "Ravi now earns", LABEL, GREY, k)
+        cy = (RPY0 + RPY1) / 2
+        ctext(L.t, (RPCX, cy - 120), "Ravi now earns", LABEL, GREY, k)
         at = cue("₹2", 2); kk = k * appear(t, at - 0.2, 0.2)
         n = int(200000 * ease((t - at + 0.2) / 1.0)); txt = f"₹{n // 100000},{(n // 1000) % 100:02d},{n % 1000:03d}" if n >= 100000 else f"₹{n // 1000},{n % 1000:03d}" if n >= 1000 else f"₹{n}"
         if n >= 200000: txt += "+"
-        ctext(L.t, (RPCX, y0 + 250), txt, font("Black", 104), NEON, kk)
-        ctext(L.t, (RPCX, y0 + 370), "per month", TITLE, WHITE, k * appear(t, cue("month", 2) - 0.2))
-        kd = k * appear(t, cue("month", 2) + 0.2)
-        ctext(L.t, (RPCX, RPY1 - 120), "Individual result", font("SemiBold", 34), GREY, kd)
-        ctext(L.t, (RPCX, RPY1 - 72), "Depends on volume · not a guarantee", font("SemiBold", 32), GREY, kd)
+        ctext(L.t, (RPCX, cy), txt, fit(L.t, "₹2,00,000+", "Black", 104, RPW - 90), NEON, kk)
+        ctext(L.t, (RPCX, cy + 110), "per month", TITLE, WHITE, k * appear(t, cue("month", 2) - 0.2))
 
 # ---------- side panel in the office ----------
 OPX0, OPY0, OPX1, OPY1 = 1240, 150, 1870, 900
@@ -152,9 +161,7 @@ def office_panel(img, L, t, i):
         glass(L, (OPX0, OPY0, OPX1, OPY1), 1.0)
         if kA > 0:
             ctext(L.t, (OPCX, OPY0 + 70), "One simple dashboard", fit(L.t, "One simple dashboard", "ExtraBold", 54, OPX1 - OPX0 - 70), WHITE, kA)
-            k0 = kA * appear(t, cue("dashboard", 5) - 0.2)
-            pic = dash_home(t - CUTS[6]); paste_top(L, pic, OPCX - pic.width / 2, OPY0 + 130, k0)
-            yb = OPY0 + 130 + pic.height + 70
+            yb = OPY0 + 200
             for j, (lab, ic, w_) in enumerate((("Requests", icon_list, "requests"), ("History", icon_clock, "history"), ("Commission", icon_coin, "commission"))):
                 k = kA * appear(t, cue(w_, 5) - 0.15); y = yb + j * 100
                 box = (OPX0 + 40, y - 40, OPX1 - 40, y + 40)
@@ -167,6 +174,33 @@ def office_panel(img, L, t, i):
             k24 = kB * appear(t, cue("24/7", 5) - 0.3)
             ctext(L.t, (OPCX, OPY0 + 500), "24/7", font("Black", 150), NEON, k24)
             ctext(L.t, (OPCX, OPY0 + 620), "every day, any hour", font("SemiBold", 36), GREY, k24)
+
+# ---------- full-screen dashboard montage ----------
+PIP_C, PIP_R = (270, 765), 160
+def dash_window(): return cue("dashboard", 5) - 0.45, cue("support", 5) - 0.35
+def dash_fs(img, L, t, frame):
+    t0, t1 = dash_window()
+    d = 2 * PIP_R; src = frame.resize((d, d), Image.BICUBIC, box=(640 - 300, 420 - 300, 640 + 300, 420 + 300))
+    m = Image.new("L", (d, d), 0); ImageDraw.Draw(m).ellipse((0, 0, d - 1, d - 1), fill=255); img.paste(src, (PIP_C[0] - PIP_R, PIP_C[1] - PIP_R), m)
+    L.n.ellipse((PIP_C[0] - PIP_R - 4, PIP_C[1] - PIP_R - 4, PIP_C[0] + PIP_R + 4, PIP_C[1] + PIP_R + 4), outline=rgba(NEON, 1), width=6)
+    beats = [(t0, "home", "Your dashboard"), (cue("requests", 5) - 0.15, "requests", "Requests"), (cue("history", 5) - 0.15, "history", "History"),
+             (cue("commission", 5) - 0.15, "commission", "Commission per operation"), (cue("all", 5) - 0.15, "home", "All in one place")]
+    cur = [b for b in beats if t >= b[0]]; bt, key, title = cur[-1]; u = t - bt
+    k = appear(t, t0 + 0.25, 0.3); kc = appear(u, 0, 0.18) if bt > t0 else 1
+    pic = dm_img(key, u + (0 if key != "home" or bt == t0 else 1.0)); z = 1.0 + 0.10 * ease_io(u / 1.6)                # push-in on every cut, anchored top-left so labels stay in frame
+    pic = pic.resize((int(pic.width * z), int(pic.height * z)), Image.BICUBIC).crop((int(pic.width * (z - 1) * 0.15), int(pic.height * (z - 1) * 0.2), int(pic.width * (z - 1) * 0.15) + pic.width, int(pic.height * (z - 1) * 0.2) + pic.height))
+    if bt == t0:                                                                                  # first beat grows in from the side panel size
+        sc_ = 0.55 + 0.45 * ease_io((t - t0 - 0.1) / 0.6); pic = pic.resize((max(1, int(pic.width * sc_)), max(1, int(pic.height * sc_))), Image.BICUBIC)
+    X = 1195; y = 560 - pic.height / 2 + 30
+    paste_card(img, L, pic, X - pic.width / 2, y + 20 * (1 - k), k, r=24)
+    pill(L, X, y - 55, title, k * kc, filled=True, fnt=font("ExtraBold", 46), h=84, padx=40)
+    ys = 200
+    for j, (bt_, key_, lab) in enumerate(beats[1:4]):
+        kk = appear(t, bt_, 0.25)
+        if kk <= 0: continue
+        on = bt_ == bt
+        L.f.rounded_rectangle((60, ys, 470, ys + 76), 24, fill=rgba(NEON_DARK if on else (6, 18, 10), 0.95 * kk)); L.n.rounded_rectangle((60, ys, 470, ys + 76), 24, outline=rgba(NEON, kk), width=3)
+        ctext(L.t, (90, ys + 38), "✓ " + lab.split(" ")[0], font("Bold", 38), WHITE, kk, "lm"); ys += 92
 
 # ---------- end card ----------
 T_END = None
@@ -190,13 +224,36 @@ def endcard(L, t, t0):
         L.f.rounded_rectangle((960 - tw / 2 - 44, 825, 960 + tw / 2 + 44, 905), 40, fill=rgba(NEON, k3))
         ctext(L.t, (960, 866), txt, fnt, (4, 20, 10), k3)
 
+# ---------- "steady daily work" illustration: neon line-art, person at a computer ----------
+def work_art(L, t, k, t0):
+    if k <= 0: return
+    x0, y0, w_, h_ = 1570, 100, 320, 250; u = t - t0
+    L.f.rounded_rectangle((x0, y0, x0 + w_, y0 + h_), 30, fill=(6, 16, 10, int(225 * k))); L.n.rounded_rectangle((x0, y0, x0 + w_, y0 + h_), 30, outline=rgba(NEON, k), width=4)
+    c = rgba(NEON, k); wc = rgba(WHITE, k); d = L.n
+    d.line([(x0 + 30, y0 + 200), (x0 + w_ - 30, y0 + 200)], fill=c, width=5)                       # desk
+    mx0, my0, mx1, my1 = x0 + 150, y0 + 55, x0 + 290, y0 + 150                                   # monitor
+    d.rounded_rectangle((mx0, my0, mx1, my1), 10, outline=c, width=5); d.line([(mx0 + 70, my1), (mx0 + 70, y0 + 180)], fill=c, width=5)
+    d.line([(mx0 + 45, y0 + 182), (mx0 + 95, y0 + 182)], fill=c, width=5)
+    for j in range(4):                                                                           # growing bars on screen
+        hgt = (14 + 14 * j) * ease((u - 0.2 - 0.15 * j) / 0.4); bx = mx0 + 22 + j * 26
+        if hgt > 0: L.t.rectangle((bx, my1 - 12 - hgt, bx + 14, my1 - 12), fill=c)
+    hx, hy = x0 + 85, y0 + 85                                                                    # person
+    d.ellipse((hx - 22, hy - 22, hx + 22, hy + 22), outline=wc, width=5)
+    d.arc((hx - 48, hy + 30, hx + 48, hy + 150), 200, 340, fill=wc, width=5)
+    d.line([(hx + 30, hy + 60), (hx + 75, hy + 100), (mx0 + 10, y0 + 196)], fill=wc, width=5)
+    tap = 4 * math.sin(u * 18) if u > 0.3 else 0
+    d.line([(mx0 - 40, y0 + 196 + tap * 0.2), (mx0 + 20, y0 + 196 + tap * 0.2)], fill=c, width=6)  # keyboard
+    for j in range(3):                                                                           # confirmations popping
+        kk = k * appear(u, 0.6 + 0.45 * j, 0.2); cx, cy = mx1 + 2, my0 - 10 + 34 * j
+        if kk > 0:
+            L.f.ellipse((cx - 13, cy - 13, cx + 13, cy + 13), fill=rgba((10, 88, 38), kk)); L.n.ellipse((cx - 13, cy - 13, cx + 13, cy + 13), outline=rgba(NEON, kk), width=3)
+            L.t.line([(cx - 6, cy), (cx - 2, cy + 5), (cx + 7, cy - 6)], fill=rgba(WHITE, kk), width=3)
+
 # ---------- full-frame overlays ----------
 def overlays(img, L, t, i):
     if i == 0:
         k = win(t, 0.6, 4.3)
         pill(L, 470, 870, "Arnold · KoiPay manager", k, filled=True, fnt=TITLE, h=96, padx=44)
-        k2 = win(t, cue("guest", 0) - 0.1, CUTS[1] - 0.3)
-        pill(L, 1450, 870, "Today's guest: a KoiPay trader", k2, fnt=PILL, h=84)
     elif i == 1:
         cx0, cy0, cw, ch = 690, 60, 540, 960
         L.n.rounded_rectangle((cx0 - 3, cy0 - 3, cx0 + cw + 3, cy0 + ch + 3), 8, outline=rgba(NEON, 1), width=5)
@@ -214,8 +271,7 @@ def overlays(img, L, t, i):
             k = win(t, cue("ravi", 1) - 0.1, cue("rickshaw", 1) - 0.6)
             pill(L, 1450, 870, "Ravi · KoiPay trader", k, filled=True, fnt=TITLE, h=96, padx=44)
     elif i == 4:
-        k = win(t, cue("steady", 3) - 0.2, CUTS[5] - 0.3)
-        pill(L, 960, 150, "Results come from steady daily work", k, filled=True, fnt=PILL, h=84)
+        work_art(L, t, win(t, cue("results", 3) - 0.2, CUTS[5] - 0.3), cue("results", 3) - 0.2)
     elif i in (5, 6):
         office_panel(img, L, t, i)
     elif i == 7:
@@ -245,6 +301,11 @@ def compose(t, frame):
         fs = FS_BG.copy(); L2 = Layers(); endcard(L2, t, T_END); fs = finish(fs, L2)
         out = frame.convert("RGBA")
         xe = int(W * (1 - p)); out.paste(fs.crop((xe, 0, W, H)), (xe, 0))
+        if p < 1: ImageDraw.Draw(out).rectangle((xe - 6, 0, xe + 6, H), fill=rgba(NEON, 0.9))
+    elif dash_window()[0] <= t < dash_window()[1]:
+        t0, t1 = dash_window(); p = min(ease_io((t - t0) / 0.45), ease_io((t1 - t) / 0.35))
+        fs = FS_BG.copy(); L2 = Layers(); dash_fs(fs, L2, t, frame); fs = finish(fs, L2)
+        out = frame.convert("RGBA"); xe = int(W * (1 - p)); out.paste(fs.crop((xe, 0, W, H)), (xe, 0))
         if p < 1: ImageDraw.Draw(out).rectangle((xe - 6, 0, xe + 6, H), fill=rgba(NEON, 0.9))
     elif sp > 0:
         img = FS_BG.copy()
