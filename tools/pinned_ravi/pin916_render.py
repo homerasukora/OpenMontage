@@ -299,7 +299,9 @@ def top_zone(img, L, t, i):
     elif i == 4: work_art(L, t, appear(t, CUTS[4] + 0.1, 0.35), CUTS[4] + 0.3)
     elif i == 5: rates(L, t)
     elif i == 6:
-        if t < dash_window()[1]: dashboard(img, L, t)
+        t0, t1 = dash_window()
+        if t < t0: rates(L, t)                       # keep the rates card until the dashboard comes in
+        elif t < t1: dashboard(img, L, t)
         else: support(L, t)
     elif i == 7: pill(L, TCX, 530, "Start today", appear(t, cue("start", 6) - 0.2), filled=True, fnt=font("Black", 80), h=140, padx=60)
 
