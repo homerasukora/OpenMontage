@@ -1,22 +1,51 @@
 """Lesson 1 re-edit: speaker matted onto black, green spill -> gold, gold 'LESSON 1' title, gold subtitles.
-usage: render.py src.mov alpha.mkv words.json out.mp4 [preview_frames_csv outdir]
+usage: render.py src.mov alpha.mkv words.json out.mp4 --cut A,B --end N --shots c1,c2,.. [--preview f1,f2 (out = dir)]
 """
-import sys, json, re, subprocess, numpy as np
+import sys, json, re, argparse, subprocess, numpy as np, cv2
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-src, alpha, words_path, out = sys.argv[1:5]
-PREVIEW = [int(x) for x in sys.argv[5].split(",")] if len(sys.argv) > 5 else None
+ap = argparse.ArgumentParser()
+ap.add_argument("src"); ap.add_argument("alpha"); ap.add_argument("words"); ap.add_argument("out")
+ap.add_argument("--cut", required=True, help="drop source frames [A,B): the 'what KoiPay provides and' phrase")
+ap.add_argument("--end", type=int, required=True, help="frame where the picture should be fully faded to black")
+ap.add_argument("--shots", default="", help="source frames with hard cuts (glow tracker resets there)")
+ap.add_argument("--preview", default="")
+args = ap.parse_args()
+src, alpha, words_path, out = args.src, args.alpha, args.words, args.out
+PREVIEW = [int(x) for x in args.preview.split(",")] if args.preview else None
 W, H, FPS = 1918, 1080, 30
-CUT_A, CUT_B = 1946, 1990          # drop frames [1946, 1990): "what KoiPay provides and"
+CUT_A, CUT_B = map(int, args.cut.split(","))
+END = args.end
+SHOTS = set(int(x) for x in args.shots.split(",")) if args.shots else set()
 PUNCH = 1.08                       # punch-in after the cut hides the jump
 FONT = "/usr/share/fonts/opentype/inter/InterDisplay-SemiBold.otf"
 SUB_FONT = "/usr/share/fonts/opentype/inter/InterDisplay-Bold.otf"
 
-# ---------- background: black with a faint warm glow behind the speaker ----------
+# ---------- background: black with a warm gold glow behind the speaker (follows the speaker) ----------
 yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-r = np.sqrt(((xx - W * .5) / (W * .55)) ** 2 + ((yy - H * .42) / (H * .75)) ** 2)
-glow = np.clip(1 - r, 0, 1) ** 2.2
-BG = (glow[..., None] * np.array([34, 24, 8], np.float32)).astype(np.float32)
+GLOW_RGB = np.array([66, 48, 12], np.float32)       # v3: ~2x stronger and a touch more yellow than v1/v2 (34,24,8)
+def make_bg(cx):
+    r = np.sqrt(((xx - cx) / (W * .5)) ** 2 + ((yy - H * .40) / (H * .72)) ** 2)
+    return (np.clip(1 - r, 0, 1) ** 2.0)[..., None] * GLOW_RGB
+_bg_cache = {}
+def bg_at(cx):
+    key = int(round(cx / 8)) * 8
+    if key not in _bg_cache: _bg_cache[key] = make_bg(key)
+    return _bg_cache[key]
+glow_x = [None]
+DITHER = np.random.default_rng(1).uniform(-1, 1, (H, W, 1)).astype(np.float32)   # breaks up 8-bit banding in the glow
+
+def clean_alpha(a):
+    """Keep only the speaker (and what touches him, e.g. the mic); drop haze and stray islands."""
+    a = np.clip((a.astype(np.float32) / 255 - .08) / .88, 0, 1)
+    small = cv2.resize(a, (W // 4, H // 4), interpolation=cv2.INTER_AREA)
+    n, lab, st, _ = cv2.connectedComponentsWithStats((small > .35).astype(np.uint8), 8)
+    if n <= 1: return a * 0
+    areas = st[1:, cv2.CC_STAT_AREA]; big = areas.max()
+    keep = np.isin(lab, 1 + np.where(areas >= .03 * big)[0]).astype(np.uint8)
+    keep = cv2.dilate(keep, np.ones((5, 5), np.uint8))
+    keep = cv2.GaussianBlur(cv2.resize(keep.astype(np.float32), (W, H), interpolation=cv2.INTER_LINEAR), (0, 0), 3)
+    return a * np.clip(keep * 1.5, 0, 1)
 
 # ---------- title overlay ----------
 def gold_text_layer():
@@ -69,7 +98,7 @@ def build_chunks(words):
     """Group words into 1-2 content words per screen; never end a screen on a function word."""
     cut0, cut1 = CUT_A / FPS, CUT_B / FPS
     ws = [dict(w, w="processed" if w["w"] == "Processed" else w["w"])
-          for w in words if not (cut0 - .02 <= w["s"] < cut1)]
+          for w in words if not (cut0 - .06 <= w["s"] < cut1)]
     clean = lambda w: re.sub(r"[.,:;?]+$", "", w["w"]).lower()
     chunks, cur = [], []
     for i, w in enumerate(ws):
@@ -125,8 +154,12 @@ def grade(fg):
 
 def compose(frame, a, k):
     fg = grade(frame.astype(np.float32))
-    a = np.clip((a.astype(np.float32) / 255 - .04) / .92, 0, 1)[..., None]
-    img = fg * a + BG * (1 - a)
+    a = clean_alpha(a)
+    cols = a[H // 8: H // 2].sum(0)                   # speaker's horizontal centre (head/shoulders)
+    cx = float((cols * np.arange(W)).sum() / cols.sum()) if cols.sum() > 1000 else W / 2
+    glow_x[0] = cx if (glow_x[0] is None or k in SHOTS) else glow_x[0] * .9 + cx * .1
+    a = a[..., None]
+    img = fg * a + bg_at(glow_x[0]) * (1 - a)
     if k >= CUT_A:                                     # punch-in after the cut
         im = Image.fromarray(img.clip(0, 255).astype(np.uint8))
         cw, ch = W / PUNCH, H / PUNCH
@@ -143,8 +176,8 @@ def compose(frame, a, k):
             o = min(1, (t - s0) / .12 + 1 / 3)      # quick fade-in
             overlay(img, rgb, a_s, (W - w) // 2, SUB_Y - h // 2 - 10, o)
             break
-    img *= np.clip((2050 - k) / 15, 0, 1)            # source goes black at frame 2050: fade out
-    return img.clip(0, 255).astype(np.uint8)
+    img *= np.clip((END - k) / 15, 0, 1)             # fade to black at the end
+    return (img + DITHER).clip(0, 255).astype(np.uint8)
 
 dec = subprocess.Popen(["ffmpeg", "-v", "error", "-i", src, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], stdout=subprocess.PIPE)
 dea = subprocess.Popen(["ffmpeg", "-v", "error", "-i", alpha, "-f", "rawvideo", "-pix_fmt", "gray", "-"], stdout=subprocess.PIPE)
