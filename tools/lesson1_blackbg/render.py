@@ -1,4 +1,5 @@
-"""Lesson 1 re-edit: speaker matted onto black, green spill -> gold, gold 'LESSON 1' title, gold subtitles.
+"""Lesson 1 re-edit, Ganesha Pay Noir brand: speaker matted onto onyx with an emerald glow, rim light -> gold,
+Noir wordmark top-right, 'LESSON 1' (Cormorant Garamond, gold) top-left, champagne Manrope subtitles.
 usage: render.py src.mov alpha.mkv words.json out.mp4 --cut A,B --end N --shots c1,c2,.. [--preview f1,f2 (out = dir)]
 """
 import sys, json, re, argparse, subprocess, numpy as np, cv2
@@ -10,6 +11,8 @@ ap.add_argument("--cut", required=True, help="drop source frames [A,B): the 'wha
 ap.add_argument("--end", type=int, required=True, help="frame where the picture should be fully faded to black")
 ap.add_argument("--shots", default="", help="source frames with hard cuts (glow tracker resets there)")
 ap.add_argument("--preview", default="")
+ap.add_argument("--fonts", required=True, help="dir with Cormorant.ttf and Manrope.ttf (Google Fonts variable fonts)")
+ap.add_argument("--logo", required=True, help="Noir wordmark RGBA png (champagne + gold, cut from the brand book)")
 args = ap.parse_args()
 src, alpha, words_path, out = args.src, args.alpha, args.words, args.out
 PREVIEW = [int(x) for x in args.preview.split(",")] if args.preview else None
@@ -18,15 +21,22 @@ CUT_A, CUT_B = map(int, args.cut.split(","))
 END = args.end
 SHOTS = set(int(x) for x in args.shots.split(",")) if args.shots else set()
 PUNCH = 1.08                       # punch-in after the cut hides the jump
-FONT = "/usr/share/fonts/opentype/inter/InterDisplay-SemiBold.otf"
-SUB_FONT = "/usr/share/fonts/opentype/inter/InterDisplay-Bold.otf"
+# Brand book (Ganesha Pay, Noir, 11.2026): onyx bg, emerald = second surface, gold only for lines/accents,
+# champagne = light text on dark (no pure white), Cormorant Garamond = headings, Manrope = text.
+ONYX = np.array([10, 11, 10], np.float32)
+EMERALD = np.array([15, 61, 46], np.float32)
+GOLD_HEX = (207, 165, 74)
+CHAMPAGNE = (230, 214, 168)
+def font(name, size, weight):
+    f = ImageFont.truetype(f"{args.fonts}/{name}.ttf", size); f.set_variation_by_name(weight); return f
 
-# ---------- background: black with a warm gold glow behind the speaker (follows the speaker) ----------
+# ---------- background: onyx with an emerald glow behind the speaker (follows the speaker) ----------
 yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-GLOW_RGB = np.array([66, 48, 12], np.float32)       # v3: ~2x stronger and a touch more yellow than v1/v2 (34,24,8)
+GLOW_PEAK = EMERALD * 1.25                           # same strength/shape as the v3 gold glow, brand emerald instead
 def make_bg(cx):
     r = np.sqrt(((xx - cx) / (W * .5)) ** 2 + ((yy - H * .40) / (H * .72)) ** 2)
-    return (np.clip(1 - r, 0, 1) ** 2.0)[..., None] * GLOW_RGB
+    g = (np.clip(1 - r, 0, 1) ** 2.0)[..., None]
+    return ONYX + g * (GLOW_PEAK - ONYX)
 _bg_cache = {}
 def bg_at(cx):
     key = int(round(cx / 8)) * 8
@@ -47,52 +57,39 @@ def clean_alpha(a):
     keep = cv2.GaussianBlur(cv2.resize(keep.astype(np.float32), (W, H), interpolation=cv2.INTER_LINEAR), (0, 0), 3)
     return a * np.clip(keep * 1.5, 0, 1)
 
-# ---------- title overlay ----------
-def gold_text_layer():
-    S = 2
-    f = ImageFont.truetype(FONT, 34 * S)
-    txt = "LESSON 1"
-    track = 7 * S
-    widths = [f.getlength(c) for c in txt]
-    tw = int(sum(widths) + track * (len(txt) - 1))
-    asc, desc = f.getmetrics()
-    line_w, gap = 0, 0                 # no side rules, just the label
-    cw, ch = tw + 2 * (line_w + gap) + 40 * S, asc + desc + 40 * S
-    mask = Image.new("L", (cw, ch), 0); d = ImageDraw.Draw(mask)
-    x = 20 * S + line_w + gap; y = 20 * S
-    for c, w in zip(txt, widths):
-        d.text((x, y), c, font=f, fill=255); x += w + track
-    return gold_fill(mask, S, halo_rgb=(230, 170, 50), halo_k=.45)
-
-def gold_fill(mask, S, halo_rgb, halo_k, shadow_k=0.0):
-    """Vertical metallic gold gradient inside `mask` (+ optional warm halo / dark shadow), downsampled by S."""
-    cw, ch = mask.size
-    g = np.linspace(0, 1, ch)[:, None, None]
-    top, mid, bot = np.array([255, 226, 140]), np.array([240, 188, 58]), np.array([190, 128, 24])
-    col = np.where(g < .5, top + (mid - top) * (g / .5), mid + (bot - mid) * ((g - .5) / .5))
-    col = np.broadcast_to(col, (ch, cw, 3))
+# ---------- title + logo ----------
+def flat_text(text, f, color, track=0, shadow_k=0.0, S=2):
+    """Flat brand-colour text (no gradients/halos), optional soft dark shadow; rendered at S x and downsampled."""
+    widths = [f.getlength(c, features=["lnum"]) for c in text]
+    tw = int(sum(widths) + track * (len(text) - 1))
+    asc, desc = f.getmetrics(); pad = 30 * S
+    mask = Image.new("L", (tw + 2 * pad, asc + desc + 2 * pad), 0); d = ImageDraw.Draw(mask)
+    x = pad
+    for c, w in zip(text, widths):
+        d.text((x, pad), c, font=f, fill=255, features=["lnum"]); x += w + track   # lining figures: "1", not old-style
     m = np.asarray(mask, np.float32) / 255
-    halo = np.asarray(mask.filter(ImageFilter.GaussianBlur(10 * S)), np.float32) / 255 * halo_k
-    rgb_h, a_h = np.array(halo_rgb, np.float32), halo
-    if shadow_k:                                      # dark drop shadow for readability over the shirt
-        sh = np.asarray(mask.filter(ImageFilter.GaussianBlur(9 * S)), np.float32) / 255
-        sh = np.roll(sh, 3 * S, axis=0) * shadow_k
-        a_h = np.clip(sh + halo * (1 - sh), 0, 1)
-        rgb_h = (np.array(halo_rgb, np.float32) * (halo * (1 - sh))[..., None]) / np.maximum(a_h, 1e-4)[..., None]
-    a = np.clip(m + a_h * (1 - m), 0, 1)
-    rgb = (col * m[..., None] + rgb_h * (a_h * (1 - m))[..., None]) / np.maximum(a, 1e-4)[..., None]
+    sh = np.zeros_like(m)
+    if shadow_k:
+        sh = np.roll(np.asarray(mask.filter(ImageFilter.GaussianBlur(9 * S)), np.float32) / 255, 3 * S, axis=0) * shadow_k
+    a = np.clip(m + sh * (1 - m), 0, 1)
+    rgb = np.array(color, np.float32) * (m / np.maximum(a, 1e-4))[..., None]
     img = Image.fromarray(np.dstack([rgb.clip(0, 255), a * 255]).astype(np.uint8), "RGBA")
-    return img.resize((cw // S, ch // S), Image.LANCZOS)
+    img = img.resize((img.width // S, img.height // S), Image.LANCZOS)
+    return np.asarray(img, np.float32)[..., :3], np.asarray(img, np.float32)[..., 3:] / 255
 
-TITLE = gold_text_layer()
-TW, TH = TITLE.size
-TX, TY = W - TW - 50, 28
-T_RGB = np.asarray(TITLE, np.float32)[..., :3]
-T_A = np.asarray(TITLE, np.float32)[..., 3:] / 255
+T_RGB, T_A = flat_text("LESSON 1", font("Cormorant", 46 * 2, b"SemiBold"), GOLD_HEX, track=7 * 2)
+TH, TW = T_A.shape[:2]
+TX, TY = 56 - 30, 50 - 30                             # text pad is 30 px
+
+LOGO = Image.open(args.logo).convert("RGBA")
+LOGO_W = 270                                          # >= 100 px minimum from the brand book
+LOGO = LOGO.resize((LOGO_W, round(LOGO.height * LOGO_W / LOGO.width)), Image.LANCZOS)
+L_RGB = np.asarray(LOGO, np.float32)[..., :3]; L_A = np.asarray(LOGO, np.float32)[..., 3:] / 255
+LX, LY = W - LOGO_W - 60, 50
 
 GOLD = np.array([1.0, .78, .32], np.float32)
 
-# ---------- subtitles: 1-2 words per screen, bottom centre, gold ----------
+# ---------- subtitles: 1-2 words per screen, bottom centre, champagne Manrope ----------
 SMALL = {"a", "an", "the", "to", "of", "and", "with", "by", "on", "in", "it", "is", "you", "your", "we"}
 def build_chunks(words):
     """Group words into 1-2 content words per screen; never end a screen on a function word."""
@@ -125,16 +122,10 @@ def build_chunks(words):
 
 SUBS = build_chunks(json.load(open(words_path)))
 _sub_cache = {}
+SUB_FONT = font("Manrope", 56 * 2, b"Bold")
 def sub_layer(text):
     if text not in _sub_cache:
-        S = 2
-        f = ImageFont.truetype(SUB_FONT, 60 * S)
-        x0, y0, x1, y1 = f.getbbox(text)
-        pad = 30 * S
-        mask = Image.new("L", (x1 - x0 + 2 * pad, 60 * S + 2 * pad + 20 * S), 0)
-        ImageDraw.Draw(mask).text((pad - x0, pad), text, font=f, fill=255)
-        img = gold_fill(mask, S, halo_rgb=(0, 0, 0), halo_k=0.0, shadow_k=1.0)
-        _sub_cache[text] = (np.asarray(img, np.float32)[..., :3], np.asarray(img, np.float32)[..., 3:] / 255)
+        _sub_cache[text] = flat_text(text, SUB_FONT, CHAMPAGNE, shadow_k=1.0)
     return _sub_cache[text]
 SUB_Y = 1000                                          # below the hands, on black (guide: ~900; moved down for readability)
 
@@ -169,6 +160,7 @@ def compose(frame, a, k):
     t = k / FPS
     o = np.clip((t - .2) / .6, 0, 1)
     overlay(img, T_RGB, T_A, TX, TY, o)
+    overlay(img, L_RGB, L_A, LX, LY, o)
     for s0, e0, text in SUBS:
         if s0 <= t < e0:
             rgb, a_s = sub_layer(text)
@@ -184,7 +176,7 @@ dea = subprocess.Popen(["ffmpeg", "-v", "error", "-i", alpha, "-f", "rawvideo", 
 enc = None
 if not PREVIEW:
     enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
-                            "-vf", "pad=1920:1080:1:0:black", "-c:v", "libx264", "-preset", "slow", "-crf", "17", "-pix_fmt", "yuv420p", out],
+                            "-vf", "pad=1920:1080:1:0:0x0A0B0A", "-c:v", "libx264", "-preset", "slow", "-crf", "17", "-pix_fmt", "yuv420p", out],
                            stdin=subprocess.PIPE)
 n = k = 0
 while True:
