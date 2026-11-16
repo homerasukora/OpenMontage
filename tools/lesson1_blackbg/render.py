@@ -7,7 +7,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 ap = argparse.ArgumentParser()
 ap.add_argument("src"); ap.add_argument("alpha"); ap.add_argument("words"); ap.add_argument("out")
-ap.add_argument("--cut", required=True, help="drop source frames [A,B): the 'what KoiPay provides and' phrase")
+ap.add_argument("--cut", default="0,0", help="drop source frames [A,B) (e.g. a brand mention); 0,0 = no cut")
+ap.add_argument("--label", default="LESSON 1")
 ap.add_argument("--end", type=int, required=True, help="frame where the picture should be fully faded to black")
 ap.add_argument("--shots", default="", help="source frames with hard cuts (glow tracker resets there)")
 ap.add_argument("--preview", default="")
@@ -57,6 +58,20 @@ def clean_alpha(a):
     keep = cv2.GaussianBlur(cv2.resize(keep.astype(np.float32), (W, H), interpolation=cv2.INTER_LINEAR), (0, 0), 3)
     return a * np.clip(keep * 1.5, 0, 1)
 
+# ---------- temporal matte stabiliser ----------
+_prev = {"a": None, "g": None}
+def stabilise(a, frame, k):
+    """Motion-adaptive temporal smoothing: where the picture is static, blend the matte with the previous
+    (already smoothed) one so edges don't shimmer; where it moves, trust the current matte (no ghosting).
+    Resets on every hard cut."""
+    g = cv2.GaussianBlur(cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY).astype(np.float32), (0, 0), 2)
+    if _prev["a"] is not None and k not in SHOTS and k != CUT_B:
+        motion = np.abs(g - _prev["g"])
+        w = np.clip(1 - motion / 10, 0, 1) * .6       # 0.6 = max weight of the previous matte
+        a = a * (1 - w) + _prev["a"] * w
+    _prev["a"], _prev["g"] = a, g
+    return a
+
 # ---------- title + logo ----------
 def flat_text(text, f, color, track=0, shadow_k=0.0, S=2):
     """Flat brand-colour text (no gradients/halos), optional soft dark shadow; rendered at S x and downsampled."""
@@ -77,7 +92,7 @@ def flat_text(text, f, color, track=0, shadow_k=0.0, S=2):
     img = img.resize((img.width // S, img.height // S), Image.LANCZOS)
     return np.asarray(img, np.float32)[..., :3], np.asarray(img, np.float32)[..., 3:] / 255
 
-T_RGB, T_A = flat_text("LESSON 1", font("Cormorant", 46 * 2, b"SemiBold"), GOLD_HEX, track=7 * 2)
+T_RGB, T_A = flat_text(args.label, font("Cormorant", 46 * 2, b"SemiBold"), GOLD_HEX, track=7 * 2)
 TH, TW = T_A.shape[:2]
 TX, TY = 56 - 30, 50 - 30                             # text pad is 30 px
 
@@ -90,12 +105,20 @@ LX, LY = W - LOGO_W - 60, 50
 GOLD = np.array([1.0, .78, .32], np.float32)
 
 # ---------- subtitles: 1-2 words per screen, bottom centre, champagne Manrope ----------
-SMALL = {"a", "an", "the", "to", "of", "and", "with", "by", "on", "in", "it", "is", "you", "your", "we"}
+SMALL = {"a", "an", "the", "or", "as", "to", "of", "and", "with", "by", "on", "in", "it", "is", "you", "your", "we"}
 def build_chunks(words):
     """Group words into 1-2 content words per screen; never end a screen on a function word."""
     cut0, cut1 = CUT_A / FPS, CUT_B / FPS
     ws = [dict(w, w="processed" if w["w"] == "Processed" else w["w"])
           for w in words if not (cut0 - .06 <= w["s"] < cut1)]
+    # keep names together on one screen: "Ganesha Pay", "lesson 2"
+    merged = []
+    for w in ws:
+        if merged and ((merged[-1]["w"] == "Ganesha" and re.match(r"Pay\b", w["w"]))
+                       or (merged[-1]["w"].lower() == "lesson" and re.match(r"\d", w["w"]))):
+            merged[-1] = dict(merged[-1], w=merged[-1]["w"] + " " + w["w"], e=w["e"])
+        else: merged.append(w)
+    ws = merged
     clean = lambda w: re.sub(r"[.,:;?]+$", "", w["w"]).lower()
     chunks, cur = [], []
     for i, w in enumerate(ws):
@@ -145,13 +168,13 @@ def grade(fg):
 
 def compose(frame, a, k):
     fg = grade(frame.astype(np.float32))
-    a = clean_alpha(a)
+    a = stabilise(clean_alpha(a), frame, k)
     cols = a[H // 8: H // 2].sum(0)                   # speaker's horizontal centre (head/shoulders)
     cx = float((cols * np.arange(W)).sum() / cols.sum()) if cols.sum() > 1000 else W / 2
     glow_x[0] = cx if (glow_x[0] is None or k in SHOTS) else glow_x[0] * .9 + cx * .1
     a = a[..., None]
     img = fg * a + bg_at(glow_x[0]) * (1 - a)
-    if k >= CUT_A:                                     # punch-in after the cut
+    if CUT_B > CUT_A and k >= CUT_A:                   # punch-in after the cut
         im = Image.fromarray(img.clip(0, 255).astype(np.uint8))
         cw, ch = W / PUNCH, H / PUNCH
         x0, y0 = (W - cw) / 2, (H - ch) * .25
