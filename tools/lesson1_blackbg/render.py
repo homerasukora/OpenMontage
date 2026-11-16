@@ -9,9 +9,11 @@ ap = argparse.ArgumentParser()
 ap.add_argument("src"); ap.add_argument("alpha"); ap.add_argument("words"); ap.add_argument("out")
 ap.add_argument("--cut", default="0,0", help="drop source frames [A,B) (e.g. a brand mention); 0,0 = no cut")
 ap.add_argument("--label", default="LESSON 1")
+ap.add_argument("--fps", type=float, default=30)
 ap.add_argument("--subs", default="", help="ready subtitle list JSON [[start_s, end_s, text], ...] in SOURCE time (e.g. Hindi dub)")
 ap.add_argument("--sub-font", default="Manrope:Bold", help="font file stem in --fonts and weight, e.g. NotoSansDeva:SemiBold")
 ap.add_argument("--label-font", default="Cormorant:SemiBold", help="e.g. NotoSerifDeva:SemiBold for Devanagari")
+ap.add_argument("--punch-from", type=int, default=0, help="static mode: punch-in from this frame (a cut made upstream)")
 ap.add_argument("--maxframe", type=int, default=10**9, help="stop after this source frame (trim a dead tail)")
 ap.add_argument("--static", action="store_true", help="no virtual camera (plain locked-off frame)")
 ap.add_argument("--qa", default="", help="also write the final (camera-transformed) matte here, for leak QA")
@@ -23,7 +25,7 @@ ap.add_argument("--logo", required=True, help="Noir wordmark RGBA png (champagne
 args = ap.parse_args()
 src, alpha, words_path, out = args.src, args.alpha, args.words, args.out
 PREVIEW = [int(x) for x in args.preview.split(",")] if args.preview else None
-W, H, FPS = 1918, 1080, 30
+W, H, FPS = 1918, 1080, args.fps
 CUT_A, CUT_B = map(int, args.cut.split(","))
 END = args.end
 SHOTS = set(int(x) for x in args.shots.split(",")) if args.shots else set()
@@ -287,7 +289,7 @@ def compose(frame, a, k):
     a = a[..., None]
     img = fg * a + bg_at(glow_x[0]) * (1 - a)
     if args.static:
-        if CUT_B > CUT_A and k >= CUT_A:               # punch-in after the cut
+        if (CUT_B > CUT_A and k >= CUT_A) or (args.punch_from and k >= args.punch_from):   # punch-in after the cut
             im = Image.fromarray(img.clip(0, 255).astype(np.uint8))
             cw, ch = W / PUNCH, H / PUNCH
             x0, y0 = (W - cw) / 2, (H - ch) * .25

@@ -7,11 +7,12 @@ import sys, subprocess, numpy as np, onnxruntime as ort, time
 model, src, out = sys.argv[1:4]; dsr = float(sys.argv[4])
 CUTS = set(int(x) for x in sys.argv[5].split(",")) if len(sys.argv) > 5 and sys.argv[5] else set()
 WARM = 12
+import os; FPS_OUT = os.environ.get("FPS", "30")
 W, H = 1918, 1080
 so = ort.SessionOptions(); so.intra_op_num_threads = 4
 sess = ort.InferenceSession(model, so, providers=["CPUExecutionProvider"])
 dec = subprocess.Popen(["ffmpeg", "-v", "error", "-i", src, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], stdout=subprocess.PIPE)
-enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{W}x{H}", "-r", "30", "-i", "-", "-c:v", "ffv1", out], stdin=subprocess.PIPE)
+enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{W}x{H}", "-r", FPS_OUT, "-i", "-", "-c:v", "ffv1", out], stdin=subprocess.PIPE)
 d = np.array([dsr], np.float32)
 zero = lambda: [np.zeros([1, 1, 1, 1], np.float32)] * 4
 
