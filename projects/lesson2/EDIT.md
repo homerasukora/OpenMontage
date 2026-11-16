@@ -1,5 +1,10 @@
 # Lesson 2 — Ganesha Pay Noir (16:9, 68.0 с)
 
+**v2 (16.11.2026): живой монтаж — виртуальная камера** (см. `projects/lesson3/EDIT.md`, раздел «Камера»).
+План камеры: 0:1.00 · 247:1.12 (склейка) · 514:1.00 · 631:1.24 (наезд) · 753:1.00 · 941:1.12 · 1043:1.24 (плавно) ·
+1187:1.00 · 1445:1.12 · 1664:1.00 · 1792:1.24 (плавно) · 1943:1.00 (плавно).
+Финальная проверка по маске после камеры (`--qa`): неон 0 px, структура фона вне ведущего 0 px во всех 2040 кадрах.
+
 Оформление — как Lesson 1 v4 (см. `projects/lesson1/EDIT.md`): оникс + изумрудное свечение за ведущим, вордмарк Noir
 справа сверху, «LESSON 2» Cormorant Garamond золотом слева сверху, субтитры Manrope шампанью.
 
@@ -29,6 +34,7 @@
 python3 tools/lesson1_blackbg/matte.py rvm_resnet50_fp32.onnx src.mov alpha.mkv 0.25 247,514,753,941,1187,1445,1664
 python3 tools/lesson1_blackbg/render.py src.mov alpha.mkv projects/lesson2/words.json video_only.mp4 \
     --label "LESSON 2" --end 2045 --shots 247,514,753,941,1187,1445,1664 \
-    --fonts fonts --logo assets/ganesha_pay_wordmark_noir.png
+    --fonts fonts --logo assets/ganesha_pay_wordmark_noir.png --qa alpha_final.mkv
+python3 tools/lesson1_blackbg/qa_final.py lesson2.mp4 alpha_final.mkv
 # звук без изменений, fade-out 0.3 с → mux
 ```
