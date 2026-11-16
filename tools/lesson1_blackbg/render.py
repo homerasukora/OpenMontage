@@ -9,6 +9,9 @@ ap = argparse.ArgumentParser()
 ap.add_argument("src"); ap.add_argument("alpha"); ap.add_argument("words"); ap.add_argument("out")
 ap.add_argument("--cut", default="0,0", help="drop source frames [A,B) (e.g. a brand mention); 0,0 = no cut")
 ap.add_argument("--label", default="LESSON 1")
+ap.add_argument("--subs", default="", help="ready subtitle list JSON [[start_s, end_s, text], ...] in SOURCE time (e.g. Hindi dub)")
+ap.add_argument("--sub-font", default="Manrope:Bold", help="font file stem in --fonts and weight, e.g. NotoSansDeva:SemiBold")
+ap.add_argument("--label-font", default="Cormorant:SemiBold", help="e.g. NotoSerifDeva:SemiBold for Devanagari")
 ap.add_argument("--maxframe", type=int, default=10**9, help="stop after this source frame (trim a dead tail)")
 ap.add_argument("--static", action="store_true", help="no virtual camera (plain locked-off frame)")
 ap.add_argument("--qa", default="", help="also write the final (camera-transformed) matte here, for leak QA")
@@ -78,13 +81,19 @@ def stabilise(a, frame, k):
 # ---------- title + logo ----------
 def flat_text(text, f, color, track=0, shadow_k=0.0, S=2):
     """Flat brand-colour text (no gradients/halos), optional soft dark shadow; rendered at S x and downsampled."""
-    widths = [f.getlength(c, features=["lnum"]) for c in text]
-    tw = int(sum(widths) + track * (len(text) - 1))
     asc, desc = f.getmetrics(); pad = 30 * S
+    if track:                                         # letter-spaced Latin label: draw glyph by glyph
+        widths = [f.getlength(c, features=["lnum"]) for c in text]
+        tw = int(sum(widths) + track * (len(text) - 1))
+    else:                                             # whole-string shaping (required for Devanagari conjuncts/matras)
+        tw = int(f.getlength(text, features=["lnum"]))
     mask = Image.new("L", (tw + 2 * pad, asc + desc + 2 * pad), 0); d = ImageDraw.Draw(mask)
-    x = pad
-    for c, w in zip(text, widths):
-        d.text((x, pad), c, font=f, fill=255, features=["lnum"]); x += w + track   # lining figures: "1", not old-style
+    if track:
+        x = pad
+        for c, w in zip(text, widths):
+            d.text((x, pad), c, font=f, fill=255, features=["lnum"]); x += w + track   # lining figures: "1", not old-style
+    else:
+        d.text((pad, pad), text, font=f, fill=255, features=["lnum"])
     m = np.asarray(mask, np.float32) / 255
     sh = np.zeros_like(m)
     if shadow_k:
@@ -95,7 +104,9 @@ def flat_text(text, f, color, track=0, shadow_k=0.0, S=2):
     img = img.resize((img.width // S, img.height // S), Image.LANCZOS)
     return np.asarray(img, np.float32)[..., :3], np.asarray(img, np.float32)[..., 3:] / 255
 
-T_RGB, T_A = flat_text(args.label, font("Cormorant", 46 * 2, b"SemiBold"), GOLD_HEX, track=7 * 2)
+_lf, _lw = args.label_font.split(":")
+_deva = any("\u0900" <= ch <= "\u097f" for ch in args.label)
+T_RGB, T_A = flat_text(args.label, font(_lf, (40 if _deva else 46) * 2, _lw.encode()), GOLD_HEX, track=0 if _deva else 7 * 2)
 TH, TW = T_A.shape[:2]
 TX, TY = 56 - 30, 50 - 30                             # text pad is 30 px
 
@@ -146,9 +157,10 @@ def build_chunks(words):
         out.append((s0, e0, " ".join(re.sub(r"[.,:;]+$", "", x["w"]) for x in c)))
     return out
 
-SUBS = build_chunks(json.load(open(words_path)))
+SUBS = [tuple(x) for x in json.load(open(args.subs))] if args.subs else build_chunks(json.load(open(words_path)))
 _sub_cache = {}
-SUB_FONT = font("Manrope", 56 * 2, b"Bold")
+_sf, _sw = args.sub_font.split(":")
+SUB_FONT = font(_sf, 56 * 2, _sw.encode())
 def sub_layer(text):
     if text not in _sub_cache:
         _sub_cache[text] = flat_text(text, SUB_FONT, CHAMPAGNE, shadow_k=1.0)
