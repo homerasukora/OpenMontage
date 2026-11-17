@@ -22,7 +22,7 @@ def font(name, size, weight):
     f = ImageFont.truetype(f"{D}/fonts/{name}.ttf", size); f.set_variation_by_name(weight); return f
 F_TITLE = font("Cormorant", 44, b"SemiBold"); F_TITLE_BIG = font("Cormorant", 104, b"SemiBold")
 F_ITEM = font("Manrope", 30, b"SemiBold"); F_SMALL = font("Manrope", 30, b"Medium"); F_PILL = font("Manrope", 34, b"Bold")
-F_NUM = font("Manrope", 92, b"Bold"); F_NUM_M = font("Manrope", 58, b"Bold"); F_SUB = font("Manrope", 54, b"Bold")
+F_NUM = font("Manrope", 92, b"Bold"); F_NUM_XL = font("Manrope", 124, b"Bold"); F_NUM_L = font("Manrope", 84, b"Bold"); F_LABEL = font("Manrope", 36, b"Medium"); F_PILL_L = font("Manrope", 42, b"Bold"); F_NUM_M = font("Manrope", 58, b"Bold"); F_SUB = font("Manrope", 54, b"Bold")
 S = 2                                           # supersampling for crisp vector shapes
 
 def rgba(img): return np.asarray(img, np.float32)
@@ -289,9 +289,9 @@ CMASK = np.asarray(_cm.resize((CIRCLE_D, CIRCLE_D), Image.LANCZOS), np.float32)[
 _ring = Image.new("RGBA", ((CIRCLE_D + 16) * S, (CIRCLE_D + 16) * S), (0, 0, 0, 0))
 ImageDraw.Draw(_ring).ellipse([2 * S, 2 * S, (CIRCLE_D + 14) * S, (CIRCLE_D + 14) * S], outline=GOLD, width=4 * S)
 RING = rgba(down(_ring))
-def draw_circle(img, frame, head, cx, cy, a=1.0, zoom=.44):
+def draw_circle(img, frame, head, cx, cy, a=1.0, zoom=.64):   # wide enough that the whole head fits
     fh, fw = frame.shape[:2]; side = int(fh * zoom)
-    hx, hy = head[0] * fw, head[1] * fh + side * .12
+    hx, hy = head[0] * fw, head[1] * fh + side * .10
     x0 = int(np.clip(hx - side / 2, 0, fw - side)); y0 = int(np.clip(hy - side / 2, 0, fh - side))
     crop = cv2.resize(np.ascontiguousarray(frame[y0:y0 + side, x0:x0 + side]), (CIRCLE_D, CIRCLE_D), interpolation=cv2.INTER_LANCZOS4).astype(np.float32)
     if fh < 600:                                                   # low-res reference footage: gentle sharpen
@@ -358,14 +358,15 @@ def scene_fs(img, t, frames):
         reg = img[py:py + PH_H, px:px + PH_W]; img[py:py + PH_H, px:px + PH_W] = reg * (1 - SMASK) + scr * SMASK
         for k, (txt, ic, c) in enumerate([("You’re a merchant", "dot", 12.56), ("You hold USDT", "dot", 15.04), ("Buy & sell ads", "dot", 17.04), ("You earn the spread", "ok", 18.72)]):
             draw_pill(img, t, f"mkt{k}", txt, 1250, 280 + k * 120, c, B1 - .2, ic=ic)
-    elif C0 <= t < C1:                                            # spread math
-        draw_pill(img, t, "sm_t", "Binance P2P · spread math", 960, 90, C0 + .05, C1 - .2, ic="binance", center=True)
-        draw_card(img, t, "sm1", [(F_NUM, "1%", GOLD, .45), (F_SMALL, "spread", CHAMP, .8)], 330, 300, 340, 260, 21.62, C1 - .2)
-        if t >= 23.0: draw_pill(img, t, "sm_x", "×", 760, 400, 23.0, C1 - .2, center=True, padx=22)
-        draw_card(img, t, "sm2", [(F_NUM_M, "₹1,00,000", CHAMP, .45), (F_SMALL, "volume", CHAMP, .8)], 830, 300, 520, 260, 23.14, C1 - .2)
-        if t >= 25.0: draw_pill(img, t, "sm_eq", "≈", 1430, 400, 25.0, C1 - .2, center=True, padx=22)
-        draw_card(img, t, "sm3", [(F_NUM_M, "₹1,000", GOLD, .45), (F_SMALL, "your margin", CHAMP, .8)], 1500, 300, 330, 260, 25.14, C1 - .2)
-        draw_pill(img, t, "sm_w", "Only if the rate doesn’t move against you", 960, 650, 27.14, C1 - .2, ic="x", center=True)
+    elif C0 <= t < C1:                                            # spread math: no speaker -> bigger, centred
+        draw_pill(img, t, "sm_t", "Binance P2P \u00b7 spread math", W // 2, 110, C0 + .05, C1 - .2, ic="binance", center=True, f=F_PILL_L, h=88)
+        x0 = (W - (380 + 110 + 600 + 110 + 400)) // 2; y0 = 300
+        draw_card(img, t, "sm1", [(F_NUM_XL, "1%", GOLD, .44), (F_LABEL, "spread", CHAMP, .82)], x0, y0, 380, 320, 21.62, C1 - .2)
+        if t >= 23.0: draw_pill(img, t, "sm_x", "\u00d7", x0 + 380 + 55, y0 + 120, 23.0, C1 - .2, center=True, padx=24, f=F_PILL_L, h=88)
+        draw_card(img, t, "sm2", [(F_NUM_L, "\u20b91,00,000", CHAMP, .44), (F_LABEL, "volume", CHAMP, .82)], x0 + 490, y0, 600, 320, 23.14, C1 - .2)
+        if t >= 25.0: draw_pill(img, t, "sm_eq", "\u2248", x0 + 490 + 600 + 55, y0 + 120, 25.0, C1 - .2, center=True, padx=24, f=F_PILL_L, h=88)
+        draw_card(img, t, "sm3", [(F_NUM_L, "\u20b91,000", GOLD, .44), (F_LABEL, "your margin", CHAMP, .82)], x0 + 1200, y0, 400, 320, 25.14, C1 - .2)
+        draw_pill(img, t, "sm_w", "Only if the rate doesn\u2019t move against you", W // 2, 700, 27.14, C1 - .2, ic="x", center=True, f=F_PILL_L, h=88)
     elif E0 <= t < E1:                                            # processing removes / how requests reach you
         draw_circle(img, frames["ref"], HEAD["E"][min(len(HEAD["E"]) - 1, int((t - E0) * FPS))], 300, 560)
         rm = dict(key="removes", title="Processing removes", t_in=40.06, t_out=E1 - .2, struck=True, width=640,
@@ -390,28 +391,37 @@ def scene_fs(img, t, frames):
         draw_panel(img, t, dash, x=720, y=120)
     if t >= END_CARD:                                             # end card
         a = ease((t - END_CARD) / .4)
+        k = ease((t - SPEECH_END) / .6)                           # 0 while the speaker circle is on screen, 1 = centred
         if t < SPEECH_END + .3:
             draw_circle(img, frames["cam"], HEAD["L"][min(len(HEAD["L"]) - 1, int((t - segs_by["L"][1]["o0"]) * FPS))], 300, 560,
                         a=a * (1 - ease((t - SPEECH_END) / .3)))
-        over(img, LOGO_BIG, (W - LOGO_BIG.shape[1]) // 2 + 150, 200, a)
-        over(img, END_TITLE, (W - END_TITLE.shape[1]) // 2 + 150, 360, a)
-        over(img, END_BTN, (W - END_BTN.shape[1]) // 2 + 150, 560, ease((t - END_CARD - .4) / .4))
-        bob = int(14 * np.sin((t - END_CARD) * 2 * np.pi / 1.1))
-        over(img, END_ARROW, (W - END_ARROW.shape[1]) // 2 + 150, 700 + bob, ease((t - END_CARD - .7) / .4))
+        sc = .82 + .18 * k; cx = W // 2 + int(200 * (1 - k))
+        g = END_GROUP if sc > .999 else cv2.resize(END_GROUP, (int(END_GROUP.shape[1] * sc), int(END_GROUP.shape[0] * sc)), interpolation=cv2.INTER_AREA)
+        gy = (H - g.shape[0]) // 2 - 60
+        over(img, g, cx - g.shape[1] // 2, gy, a)
+        bob = int(16 * np.sin((t - END_CARD) * 2 * np.pi / 1.1))
+        ar = END_ARROW if sc > .999 else cv2.resize(END_ARROW, (int(END_ARROW.shape[1] * sc), int(END_ARROW.shape[0] * sc)), interpolation=cv2.INTER_AREA)
+        over(img, ar, cx - ar.shape[1] // 2, gy + g.shape[0] + 30 + bob, ease((t - END_CARD - .6) / .4))
 
-# end-card assets
-_lb = Image.open(f"{D}/ganesha_wordmark_noir.png").convert("RGBA"); _lb = _lb.resize((420, round(_lb.height * 420 / _lb.width)), Image.LANCZOS)
-LOGO_BIG = rgba(_lb)
+# end-card assets: logo + title + button stacked in one layer (moved/scaled as a unit)
+_lb = Image.open(f"{D}/ganesha_wordmark_noir.png").convert("RGBA"); _lb = _lb.resize((520, round(_lb.height * 520 / _lb.width)), Image.LANCZOS)
 def _end_title():
-    f = ImageFont.truetype(F_TITLE_BIG.path, 104 * S); f.set_variation_by_name(b"SemiBold")
+    f = ImageFont.truetype(F_TITLE.path, 150 * S); f.set_variation_by_name(b"SemiBold")
     a_txt, b_txt = "Free ", "P2P training"
     wa, wb = f.getlength(a_txt), f.getlength(b_txt)
-    im = Image.new("RGBA", (int(wa + wb) + 40 * S, 150 * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
-    d.text((20 * S, 10 * S), a_txt, font=f, fill=CHAMP); d.text((20 * S + wa, 10 * S), b_txt, font=f, fill=GOLD)
-    return rgba(down(im))
-END_TITLE = _end_title()
-END_BTN = pill("Link below — in the description", fill=GOLD + (255,), border=GOLD, fg=ONYX, h=84, padx=44, f=font("Manrope", 36, b"Bold"))
-END_ARROW = rgba(icon("down", 70))
+    im = Image.new("RGBA", (int(wa + wb) + 40 * S, 210 * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    d.text((20 * S, 12 * S), a_txt, font=f, fill=CHAMP); d.text((20 * S + wa, 12 * S), b_txt, font=f, fill=GOLD)
+    return down(im)
+_title = _end_title()
+_btn = Image.fromarray(pill("Link below \u2014 in the description", fill=GOLD + (255,), border=GOLD, fg=ONYX, h=110, padx=56,
+                            f=font("Manrope", 50, b"Bold")).astype(np.uint8), "RGBA")
+_gw = max(_lb.width, _title.width, _btn.width); _gh = _lb.height + 50 + _title.height + 40 + _btn.height
+_grp = Image.new("RGBA", (_gw, _gh), (0, 0, 0, 0))
+_grp.alpha_composite(_lb, ((_gw - _lb.width) // 2, 0))
+_grp.alpha_composite(_title, ((_gw - _title.width) // 2, _lb.height + 50))
+_grp.alpha_composite(_btn, ((_gw - _btn.width) // 2, _lb.height + 50 + _title.height + 40))
+END_GROUP = rgba(_grp)
+END_ARROW = rgba(icon("down", 96))
 
 # ---------------- render loop ----------------
 def frame_at(t, frames, cam_ok):
