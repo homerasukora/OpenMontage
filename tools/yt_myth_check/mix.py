@@ -22,7 +22,7 @@ def thud(strength):
     return x.astype(np.float32)
 sfx = np.zeros(N, np.float32)
 for ts, kind in tl["stamps"]:
-    x = thud(.55 if kind == "myth" else .32); i = int((ts + .1) * SR)
+    x = thud({"myth": .55, "q": .32, "bin": .16}[kind]); i = int((ts + .1) * SR)
     sfx[i:i + len(x)] += x[:max(0, N - i)]
 
 sf.write(f"{Y}/voice.wav", voice, SR); sf.write(f"{Y}/sfx.wav", sfx, SR)

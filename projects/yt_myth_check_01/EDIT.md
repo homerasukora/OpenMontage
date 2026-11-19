@@ -12,10 +12,19 @@
 ## Сцены
 | Время | Сцена |
 |---|---|
-| 0:00 | Три цитаты-мифа по одной, на каждой штамп «MYTH?» (удар + встряска), плашка P2P MYTH CHECK |
-| 0:08 | Arnold, карточка «Episode 1 · P2P Myth Check» |
+| 0:00 | Arnold в кадре с первой секунды. Цитаты-мифы по одной справа → штамп «MYTH?» (удар + встряска) → плашка сжимается и улетает в корзину «MYTHS» |
+| 0:09 | Карточка «Episode 1 · P2P Myth Check» |
 | 0:13 | Punch-in, «Arnold · Manager», список трёх мифов |
 | 0:22 | MYTH 1 — цитата «P2P processing is a scam.» → Arnold + Red flags → Green flags (6 пунктов, фото Devansh) → штамп MYTH |
 | 0:59 | MYTH 2 — цитата → Arnold + «What triggers freezes» → «In Ganesha Pay: verified merchants only», ~5 in 10,000 → штамп MYTH |
 | 1:27 | MYTH 3 — цитата → «Average Ganesha Pay agent: up to ₹4,00,000 a month», «Depends on volume. Not guaranteed.», «More? Depends on your bank accounts» → Arnold: Shifts · Confirmations · Limits → штамп MYTH |
 | 1:46 | Все три цитаты со штампом MYTH → Arnold + панель Academy → финальная карточка: New to P2P → Free Academy course / Already trading → Message a manager / Links in the description |
+
+## Правки v2 (19.11)
+- Хук с лицом Arnold: плашка → штамп MYTH? → полёт в корзину MYTHS (звук удара + мягкий «плюх» корзины).
+- Синхрон губ 0:13–0:22: в клипе интро Wan сдвинул свою звуковую дорожку на ~0.5 с относительно губ. Проверка губ
+  (`lipeval.py`: открытие рта по кадрам ↔ огибающая озвучки) показала, что губы идут по чистой озвучке → для интро
+  и первой части мифа 2 карта по словам заменена на прямое соответствие.
+- Субтитры «P2P processing» (ASR дал «P two P»).
+- Green flags и кружок — с «A real platform shows green flags» (~0:35); до этого Arnold в кадре с Red flags.
+- На финальной карточке логотип в левом верхнем углу убран (он уже есть над кнопками).

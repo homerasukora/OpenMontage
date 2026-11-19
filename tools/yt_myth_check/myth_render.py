@@ -42,7 +42,8 @@ SEC_END = {n: OFF[SECS[i + 1][0]] if i + 1 < len(SECS) else SPEECH_END for i, (n
 def cue(sec, word, n=1):
     k = 0
     for w in RAW:
-        if w["sec"] == sec and re.sub(r"[^\w$%₹]", "", w["w"].lower()).startswith(word.lower()):
+        cw = re.sub(r"[^\w$%₹]", "", w["w"].lower()); ww = word.lower()
+        if w["sec"] == sec and (cw == ww or (len(ww) > 3 and cw.startswith(ww))):
             k += 1
             if k == n: return w["s"]
     raise KeyError((sec, word, n))
@@ -221,6 +222,7 @@ def merge(ws):
         tail = lambda k: re.search(r"[.,?]*$", w[k]).group(0)
         if low[1:3] == ["lakh", "rupees"]: take(3, f"₹{low[0]} lakh"); continue
         if low[:2] == ["third", "party"]: take(2, "third-party"); continue
+        if low[:3] == ["p", "two", "p"] or low[:3] == ["p", "to", "p"]: take(3, "P2P" + tail(2)); continue
         if low[0] == "myth" and low[1] in ("one", "two", "three"): take(2, "Myth " + {"one": "1", "two": "2", "three": "3"}[low[1]] + tail(1)); continue
         if low[1:3] == ["per", "cent"] and low[0] in ("one", "three"): take(3, ("1%" if low[0] == "one" else "3%") + tail(2)); continue
         if low[1] == "percent" and low[0] in ("one", "three"): take(2, ("1%" if low[0] == "one" else "3%") + tail(1)); continue
@@ -422,7 +424,14 @@ MYTHS = {"m3": ("MYTH 1", "P2P processing is a scam."), "m4": ("MYTH 2", "Your b
          "m5": ("MYTH 3", "You can't make real money with P2P.")}
 TITLE_END = {"m3": cue("m3", "heres") - .12, "m4": cue("m4", "freezes") - .12, "m5": cue("m5", "on") - .12}
 for k in MYTHS: STAMPS.append((SE[k] + .25, "myth"))
-for _, _, _, ts in HOOK_CARDS: STAMPS.append((ts, "q"))
+# hook on camera: plate appears -> MYTH? stamp -> plate shrinks and flies into the MYTHS bin
+HP_X, HP_Y, HP_W, HP_H = 1290, 190, 580, 240
+BIN_X, BIN_Y = 1765, 905                                 # bin centre (opening at ~BIN_Y - 70)
+HOOK = []; prev_land = -1
+for k, (key, txt, tin, ts) in enumerate(HOOK_CARDS):
+    a0 = max(tin - .05, prev_land - .25, 0.0); s0 = max(ts, a0 + .7); f0 = s0 + .5
+    HOOK.append(dict(txt=txt, a0=a0, s0=s0, f0=f0, f1=f0 + .5)); prev_land = f0 + .5
+    STAMPS.append((s0, "q")); STAMPS.append((f0 + .4, "bin"))
 H_CAM = cue("m1", "thats") - .1                      # hook: cards full screen, then Arnold
 CTA_RECAP_END = cue("m6", "thats") - .12
 END_FS = cue("m6", "if", 2) - .12
@@ -432,7 +441,6 @@ M5_CAM = cue("m5", "its", 1) - .12                   # "It's real work"
 
 def mode_at(t):
     if any(SE[k] <= t < SE[k] + GAPS[k] for k in GAPS): return True, None
-    if t < H_CAM: return True, None
     if t < o["m2"]: return False, "full"
     if t < o["m3"]: return False, "punch"
     if t < TITLE_END["m3"]: return True, None
@@ -483,6 +491,59 @@ def counter_img(v):
 DISCL = text_img("Depends on volume. Not guaranteed.", "Manrope", 28, "Medium", (200, 190, 160))
 DEV_SMALL = framed(Image.open(f"{M}/dev1_clean.png"), 360, 480)
 
+def _bin(open_):
+    w, h = 190, 230
+    im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    d.rounded_rectangle([0, 0, w * S - 1, h * S - 1], radius=26 * S, fill=ONYX + (225,), outline=GOLD + (230,), width=2 * S)
+    cx = w // 2; lw = 5 * S
+    d.polygon([((cx - 46) * S, 78 * S), ((cx + 46) * S, 78 * S), ((cx + 38) * S, 170 * S), ((cx - 38) * S, 170 * S)], outline=GOLD, width=lw)
+    for dx in (-16, 0, 16): d.line([((cx + dx) * S, 92 * S), ((cx + dx * .85) * S, 158 * S)], fill=GOLD, width=3 * S)
+    lid = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); dl = ImageDraw.Draw(lid)
+    dl.line([((cx - 56) * S, 66 * S), ((cx + 56) * S, 66 * S)], fill=GOLD, width=lw); dl.rounded_rectangle([(cx - 14) * S, 52 * S, (cx + 14) * S, 66 * S], radius=4 * S, outline=GOLD, width=3 * S)
+    if open_: lid = lid.rotate(28, resample=Image.BICUBIC, center=((cx + 56) * S, 66 * S))
+    im.alpha_composite(lid)
+    d.text((cx * S, 202 * S), "MYTHS", font=fS("Manrope", 26, "ExtraBold"), fill=GOLD, anchor="mm")
+    return rgba(down(im))
+BIN_C, BIN_O = _bin(False), _bin(True)
+_hp = {}
+def hook_plate(k, stamped):
+    key = (k, stamped)
+    if key not in _hp:
+        c = quote_card(None, HOOK[k]["txt"], HP_W, HP_H, 50).copy()
+        if stamped:
+            st = cv2.resize(STAMP_Q, (int(STAMP_Q.shape[1] * .62), int(STAMP_Q.shape[0] * .62)), interpolation=cv2.INTER_AREA)
+            m_ = 140; pad = np.zeros((HP_H + 2 * m_, HP_W + 2 * m_, 4), np.float32); pad[m_:m_ + HP_H, m_:m_ + HP_W] = c
+            y, x = m_ + HP_H - 30 - st.shape[0] // 2, m_ + HP_W - 120 - st.shape[1] // 2
+            reg = pad[y:y + st.shape[0], x:x + st.shape[1]]; la = st[..., 3:] / 255
+            reg[..., :3] = reg[..., :3] * (1 - la) + st[..., :3] * la; reg[..., 3:] = np.maximum(reg[..., 3:], st[..., 3:])
+            c = pad
+        _hp[key] = c
+    return _hp[key]
+def draw_hook(img, t):
+    vis = ease(t / .3) * (1 - ease((t - (HOOK[-1]["f1"] + .45)) / .4))
+    if vis > 0:                                                     # the bin
+        open_ = any(h["f0"] - .1 <= t < h["f1"] + .05 for h in HOOK)
+        b = BIN_O if open_ else BIN_C
+        land = [t - h["f1"] for h in HOOK if 0 <= t - h["f1"] < .35]
+        sc = 1 + (.14 * math.sin(land[0] / .35 * math.pi) if land else 0)
+        lay = b if sc == 1 else cv2.resize(b, (int(b.shape[1] * sc), int(b.shape[0] * sc)), interpolation=cv2.INTER_AREA)
+        over(img, lay, BIN_X - lay.shape[1] // 2, BIN_Y - lay.shape[0] // 2, vis)
+    for k, h in enumerate(HOOK):
+        if t < h["a0"] or t >= h["f1"]: continue
+        if t < h["f0"]:                                             # on the wall, stamp lands
+            a = ease((t - h["a0"]) / .3); y = HP_Y + int(30 * (1 - ease((t - h["a0"]) / .35)))
+            over(img, hook_plate(k, False), HP_X, y, a)
+            draw_stamp(img, STAMP_Q, HP_X + HP_W - 120, HP_Y + HP_H - 30, t, h["s0"], scale=.62, sound=False)
+        else:                                                       # shrink + fly into the bin
+            q = (t - h["f0"]) / (h["f1"] - h["f0"]); e = q * q * (3 - 2 * q)
+            pl = hook_plate(k, True); sc = max(.04, 1 - .96 * e)
+            cx0, cy0 = HP_X + HP_W / 2, HP_Y + HP_H / 2; cx1, cy1 = BIN_X, BIN_Y - 40
+            cx = cx0 + (cx1 - cx0) * e; cy = cy0 + (cy1 - cy0) * e - 120 * math.sin(math.pi * e)
+            lay = cv2.resize(pl, (max(2, int(pl.shape[1] * sc)), max(2, int(pl.shape[0] * sc))), interpolation=cv2.INTER_AREA)
+            ang = -25 * e; M_ = cv2.getRotationMatrix2D((lay.shape[1] / 2, lay.shape[0] / 2), ang, 1.0)
+            lay = cv2.warpAffine(lay, M_, (lay.shape[1], lay.shape[0]))
+            over(img, lay, int(cx - lay.shape[1] / 2), int(cy - lay.shape[0] / 2), 1 - ease((q - .75) / .25))
+
 def myth_title(img, t, sec, t_in, t_out, stamp_t=None):
     lab, txt = MYTHS[sec]
     c = qcard(sec, lab, txt, 1300, 400, 76)
@@ -493,14 +554,7 @@ def myth_title(img, t, sec, t_in, t_out, stamp_t=None):
     if stamp_t is not None: draw_stamp(img, STAMP_MYTH, 1420, 640, t, stamp_t)
 
 def scene_fs(img, t, frame):
-    if t < H_CAM:                                                          # hook: three quote cards, MYTH? stamps
-        for k, (key, txt, tin, ts) in enumerate(HOOK_CARDS):
-            if t < tin - .01: continue
-            c = qcard("h" + str(k), None, txt, 540, 360, 54); a = ease((t - tin) / .3)
-            x = 110 + k * 580; y = 300 + int(40 * (1 - ease((t - tin) / .35)))
-            over(img, c, x, y, a); draw_stamp(img, STAMP_Q, x + 360, y + 290, t, ts, scale=.72)
-        draw_pill(img, t, "h_t", "P2P MYTH CHECK", W // 2, 150, .1, H_CAM, center=True, size=44, h=100)
-    elif o["m3"] <= t < TITLE_END["m3"] or o["m4"] <= t < TITLE_END["m4"] or o["m5"] <= t < TITLE_END["m5"]:
+    if o["m3"] <= t < TITLE_END["m3"] or o["m4"] <= t < TITLE_END["m4"] or o["m5"] <= t < TITLE_END["m5"]:
         sec = "m3" if t < o["m4"] else "m4" if t < o["m5"] else "m5"
         myth_title(img, t, sec, o[sec] - .05, TITLE_END[sec])
     elif any(SE[s] <= t < SE[s] + GAPS[s] for s in ("m3", "m4", "m5")):  # stamp beat
@@ -553,9 +607,10 @@ def scene_fs(img, t, frame):
         over(img, g, cx - g.shape[1] // 2, (H - g.shape[0]) // 2 - 50, a)
 
 def cam_overlays(img, t):
+    if t < o["m2"]: draw_hook(img, t)
     if H_CAM <= t < o["m2"]:
         draw_card(img, t, "ep", [("Manrope", 28, "Bold", "EPISODE 1", GOLD, .28), ("Cormorant", 66, "SemiBold", "P2P Myth Check", CHAMP, .66)],
-                  1330, 590, 520, 160, H_CAM + .1, o["m2"] - .1, fill=ONYX + (230,))
+                  1330, 590, 520, 160, HOOK[-1]["f1"] + .5, o["m2"] - .1, fill=ONYX + (230,))
     if o["m2"] <= t < o["m3"]:
         draw_card(img, t, "lt", [("Cormorant", 64, "SemiBold", "Arnold", GOLD, .38), ("Manrope", 30, "SemiBold", "Manager · Ganesha Pay", CHAMP, .74)],
                   80, 700, 480, 150, o["m2"] + .2, cue("m2", "every") + 1.0, fill=ONYX + (225,))
@@ -568,7 +623,7 @@ def cam_overlays(img, t):
         draw_panel(img, t, dict(key="red", title="Red flags", t_in=TITLE_END["m3"] + .05, t_out=M3_GREEN - .05, width=720,
                                 items=[(a, b) for a, b, _ in rows], cues=[c for _, _, c in rows]))
     if TITLE_END["m4"] <= t < M4_FS:                                        # what triggers freezes
-        rows = [("x", "Grey, third-party money", cue("m4", "gr")), ("x", "Anonymous buyers on exchanges", cue("m4", "exchanges"))]
+        rows = [("x", "Grey, third-party money", cue("m4", "gray")), ("x", "Anonymous buyers on exchanges", cue("m4", "exchanges"))]
         draw_panel(img, t, dict(key="frz", title="What triggers freezes", t_in=TITLE_END["m4"] + .05, t_out=M4_FS - .05, width=720,
                                 items=[(a, b) for a, b, _ in rows], cues=[c for _, _, c in rows]))
     if M5_CAM <= t < o["m6"]:
@@ -583,7 +638,7 @@ def cam_overlays(img, t):
 def shake(t):
     for ts, kind in STAMPS:
         k = t - ts - .1
-        if 0 <= k < .22:
+        if 0 <= k < .22 and kind != "bin":
             amp = (12 if kind == "myth" else 6) * (1 - k / .22)
             return int(amp * math.sin(k * 90)), int(amp * .6 * math.cos(k * 70))
     return 0, 0
@@ -597,7 +652,7 @@ def frame_at(t, frame):
         cam_overlays(img, t)
     dx, dy = shake(t)
     if dx or dy: img = np.roll(np.roll(img, dx, axis=1), dy, axis=0)
-    draw_logo(img, fs)
+    if t < END_FS: draw_logo(img, fs)
     if t < SPEECH_END + .05: draw_subs(img, t)
     return img, (fs, cm)
 
