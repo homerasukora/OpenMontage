@@ -18,10 +18,10 @@ TOTAL_V = acc + XF
 NFV = int(round(TOTAL_V * FPS))
 
 # ---------- layout (safe zone: top ~180 px UI icons, bottom ~420 px caption/channel, right ~120 px buttons) ----------
-AR_H = 940                       # Arnold area
-SUB_Y = 880                      # caption centre
-CX = 540; CW = 840; CARD_TOP = 962
-LOGO_Y = 1462                    # wordmark under the card
+AR_H = 960                       # Arnold area
+SUB_Y = 1012                      # caption centre
+CX = 540; CW = 840; CARD_TOP = 1085
+LOGO_Y = 1592                    # wordmark under the card
 vy, vx = np.mgrid[0:VH, 0:VW].astype(np.float32)
 vr = np.sqrt(((vx - VW * .5) / (VW * .9)) ** 2 + ((vy - VH * .58) / (VH * .5)) ** 2)
 VBG = np.array(ONYX, np.float32) + np.clip(1 - vr, 0, 1)[..., None] ** 1.8 * (np.array(EMERALD, np.float32) * 1.5 - np.array(ONYX, np.float32))
@@ -137,7 +137,7 @@ def vsub(img, t):
 
 def vframe(ts, raw):
     img = VBG.copy()
-    crop = raw[20:20 + 529, 681:681 + 608]
+    crop = raw[20:20 + 540, 681:681 + 608]
     ar = cv2.resize(np.ascontiguousarray(crop), (VW, AR_H), interpolation=cv2.INTER_CUBIC).astype(np.float32)
     bl = cv2.GaussianBlur(ar, (0, 0), 1.4); ar = np.clip(ar * 1.35 - bl * .35, 0, 255)
     img[:AR_H] = ar * (1 - AGRAD) + img[:AR_H] * AGRAD
