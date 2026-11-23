@@ -30,3 +30,9 @@
 | 1:46 | Live counter с сайта (запись экрана в рамке) |
 | 1:58 | Ganesha Pay Academy: Free, ~20 min a day, чему учат, сертификат |
 | 2:12 | CTA: «Message a manager» / «Free Academy course» / «Links in the description» |
+
+## Рекламные вставки для блогеров (23.11)
+Нарезка из финального рендера (графика и субтитры уже вшиты), озвучка — те же отрезки чистого голоса, подложка `bed.py` заново под длину, склейки 0.2 с, −15.5…−16 LUFS.
+`tools/yt_ganesha_intro/ad_cut.py <name> start:end ...` (секунды финального таймлайна).
+- **60 с** (59.4 с): хук Devansh 0:00–0:13.2 → «кто мы» + один раунд PayIn 3% / PayOut 1% 0:23.88–0:56.15 → CTA и финальная карточка 2:12.27–2:26.6.
+- **30 с** (32.5 с): хук → «Ganesha Pay is a P2P processing platform in India with clean merchant traffic.» (0:23.88–0:29.2) → CTA.
