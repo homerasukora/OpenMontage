@@ -51,3 +51,4 @@
   (заголовки Cormorant 72–84, строки Manrope 54, цифры 140–170): «How it works», «One round», PayIn 3% / PayOut +1%,
   «Disputes? Your manager handles them», «~5 per 10,000 payments», две кнопки + «Links in the description».
 - Безопасная зона: всё значимое выше y≈1500 и левее x≈960; субтитры не шире 880 px.
+- v3: плашка и логотип ниже (~60 px), область ведущего 940 px вместо 860; логотип y≈1462, низ ≈ 1516 (≥ 400 px от нижнего края).

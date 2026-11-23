@@ -18,10 +18,10 @@ TOTAL_V = acc + XF
 NFV = int(round(TOTAL_V * FPS))
 
 # ---------- layout (safe zone: top ~180 px UI icons, bottom ~420 px caption/channel, right ~120 px buttons) ----------
-AR_H = 860                       # Arnold area
-SUB_Y = 805                      # caption centre
-CX = 540; CW = 840; CARD_TOP = 900
-LOGO_Y = 1432                    # wordmark under the card
+AR_H = 940                       # Arnold area
+SUB_Y = 880                      # caption centre
+CX = 540; CW = 840; CARD_TOP = 962
+LOGO_Y = 1462                    # wordmark under the card
 vy, vx = np.mgrid[0:VH, 0:VW].astype(np.float32)
 vr = np.sqrt(((vx - VW * .5) / (VW * .9)) ** 2 + ((vy - VH * .58) / (VH * .5)) ** 2)
 VBG = np.array(ONYX, np.float32) + np.clip(1 - vr, 0, 1)[..., None] ** 1.8 * (np.array(EMERALD, np.float32) * 1.5 - np.array(ONYX, np.float32))
@@ -42,7 +42,7 @@ def _base(h):
     d.rounded_rectangle([0, 0, CW * S - 1, h * S - 1], radius=34 * S, fill=ONYX + (225,), outline=GOLD + (235,), width=3 * S)
     return im, d
 def card_list(title, rows, n):
-    pad, th, rh, gap = 34, 86, 104, 14
+    pad, th, rh, gap = 32, 84, 98, 14
     h = pad + th + n * (rh + gap) + pad - (gap if n else 0)
     im, d = _base(h)
     d.text((CW * S // 2, (pad + th // 2 - 4) * S), title, font=fS("Cormorant", 72, "SemiBold"), fill=GOLD, anchor="mm", features=["lnum"])
@@ -78,15 +78,15 @@ def card_stat():
     d.text((CW * S // 2, 405 * S), "≈ 0.05%", font=fS("Manrope", 38, "SemiBold"), fill=(200, 190, 160), anchor="mm")
     return rgba(down(im))
 def card_end(n):
-    pad, bh, gap = 28, 150, 18; h = pad + max(n, 1) * bh + (gap if n > 1 else 0) + pad
+    pad, bh, gap = 26, 138, 16; h = pad + max(n, 1) * bh + (gap if n > 1 else 0) + pad
     im, d = _base(h)
     for k, (lab, txt, ic) in enumerate([("NEW TO P2P", "Free Academy course", "cap"), ("ALREADY TRADING", "Message a manager", "plane")]):
         if k >= n: continue
         y = pad + k * (bh + gap)
         d.rounded_rectangle([pad * S, y * S, (CW - pad) * S, (y + bh) * S], radius=24 * S, fill=EMERALD + (215,), outline=GOLD + (220,), width=2 * S)
-        im.alpha_composite(icon(ic, 60).resize((60 * S, 60 * S)), ((pad + 30) * S, (y + 45) * S))
-        d.text(((CW // 2 + 40) * S, (y + 44) * S), lab, font=fS("Manrope", 34, "Bold"), fill=GOLD, anchor="mm")
-        d.text(((CW // 2 + 40) * S, (y + 100) * S), txt, font=fS("Manrope", 56, "Bold"), fill=CHAMP, anchor="mm")
+        im.alpha_composite(icon(ic, 58).resize((58 * S, 58 * S)), ((pad + 30) * S, (y + 40) * S))
+        d.text(((CW // 2 + 40) * S, (y + 40) * S), lab, font=fS("Manrope", 33, "Bold"), fill=GOLD, anchor="mm")
+        d.text(((CW // 2 + 40) * S, (y + 93) * S), txt, font=fS("Manrope", 56, "Bold"), fill=CHAMP, anchor="mm")
     return rgba(down(im))
 LINK_PILL = pill("Links in the description", ic="down", fill=GOLD + (255,), border=GOLD, fg=ONYX, size=46, h=100, padx=46)
 EMPTY = np.zeros((2, 2, 4), np.float32)
@@ -124,7 +124,7 @@ def draw_card_v(img, ts):
     else:
         put(img, lay, a, int(24 * (1 - a)))
     if key in ("link", "end"):                                     # gold pill: alone first, then under the buttons
-        y = CARD_TOP + 40 if key == "link" else CARD_TOP + lay.shape[0] + 20
+        y = CARD_TOP + 40 if key == "link" else CARD_TOP + lay.shape[0] + 16
         pa = ease((ts - CARDS[6][0]) / .35)
         vover(img, LINK_PILL, CX - LINK_PILL.shape[1] // 2, y, pa)
 
@@ -137,7 +137,7 @@ def vsub(img, t):
 
 def vframe(ts, raw):
     img = VBG.copy()
-    crop = raw[20:20 + 484, 681:681 + 608]
+    crop = raw[20:20 + 529, 681:681 + 608]
     ar = cv2.resize(np.ascontiguousarray(crop), (VW, AR_H), interpolation=cv2.INTER_CUBIC).astype(np.float32)
     bl = cv2.GaussianBlur(ar, (0, 0), 1.4); ar = np.clip(ar * 1.35 - bl * .35, 0, 255)
     img[:AR_H] = ar * (1 - AGRAD) + img[:AR_H] * AGRAD
