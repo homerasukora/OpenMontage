@@ -28,3 +28,10 @@
 - Субтитры «P2P processing» (ASR дал «P two P»).
 - Green flags и кружок — с «A real platform shows green flags» (~0:35); до этого Arnold в кадре с Red flags.
 - На финальной карточке логотип в левом верхнем углу убран (он уже есть над кнопками).
+
+## Shorts 9:16 — «Is P2P processing a scam?» (23.11)
+`tools/yt_myth_check/myth_shorts_render.py` + `myth_shorts_mix.py`, 1080×1920, 58 с, −15.8 LUFS.
+Раскладка как у Shorts «Who we are» v4: Arnold сверху (лицо свободно), субтитры под ним, крупные плашки, логотип под плашкой.
+Состав: миф 1 целиком (0:22.20–0:59.44 мастера) → CTA целиком (1:46.36–2:07.6).
+Плашки: цитата «P2P processing is a scam.» + штамп MYTH? → Red flags (3) → Green flags 1 (KYB, 3% + 1%, live volume) →
+Green flags 2 (real manager, agent results, free Academy) → цитата + штамп MYTH (удар + встряска) → Ganesha Pay Academy → две кнопки + «Links in the description».
