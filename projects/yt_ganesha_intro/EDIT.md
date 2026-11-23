@@ -44,3 +44,10 @@
 Сознательно убрано для соцсетей: хук с доходом Devansh (₹3,12,075 за 30 дней, «from his phone, not trading»),
 фото и кейс Devansh, «I'm Arnold, a manager», сравнение с биржами и логотип Binance.
 При загрузке: YouTube Studio → AI use = Yes; Instagram → метка «AI info» (Arnold — сгенерированный ведущий).
+
+### Shorts v2 (23.11)
+- Логотип перенесён: по центру под плашкой (y≈1432), в углу его больше нет.
+- Вместо уменьшенной графики 16:9 — собственные вертикальные плашки с короткими фразами и крупным шрифтом
+  (заголовки Cormorant 72–84, строки Manrope 54, цифры 140–170): «How it works», «One round», PayIn 3% / PayOut +1%,
+  «Disputes? Your manager handles them», «~5 per 10,000 payments», две кнопки + «Links in the description».
+- Безопасная зона: всё значимое выше y≈1500 и левее x≈960; субтитры не шире 880 px.
