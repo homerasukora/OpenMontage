@@ -36,3 +36,11 @@
 `tools/yt_ganesha_intro/ad_cut.py <name> start:end ...` (секунды финального таймлайна).
 - **60 с** (59.4 с): хук Devansh 0:00–0:13.2 → «кто мы» + один раунд PayIn 3% / PayOut 1% 0:23.88–0:56.15 → CTA и финальная карточка 2:12.27–2:26.6.
 - **30 с** (32.5 с): хук → «Ganesha Pay is a P2P processing platform in India with clean merchant traffic.» (0:23.88–0:29.2) → CTA.
+
+## Shorts / Reels 9:16 (23.11)
+`tools/yt_ganesha_intro/shorts_render.py` — 1080×1920, 58 с. Сверху Arnold (вертикальный кроп), по центру субтитры,
+ниже карточка с графикой из 16:9-сцен (без кружка), вертикальная финальная карточка.
+Состав: «кто мы» + один раунд (0:23.88–0:59.62) → споры и 0.05% жалоб (1:37.45–1:46.2) → CTA (2:12.27–2:26.6).
+Сознательно убрано для соцсетей: хук с доходом Devansh (₹3,12,075 за 30 дней, «from his phone, not trading»),
+фото и кейс Devansh, «I'm Arnold, a manager», сравнение с биржами и логотип Binance.
+При загрузке: YouTube Studio → AI use = Yes; Instagram → метка «AI info» (Arnold — сгенерированный ведущий).
