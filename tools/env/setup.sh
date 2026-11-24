@@ -10,3 +10,5 @@ npm install -g @higgsfield/cli
 npx -y skills add higgsfield-ai/skills -g -a claude-code -y
 
 higgsfield version
+# free-video: CLI over Open Generative AI / MuAPI (needs MUAPI_API_KEY)
+ln -sf /home/user/OpenMontage/tools/free_video/free_video.py /usr/local/bin/free-video || true
