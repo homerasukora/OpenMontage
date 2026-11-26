@@ -1,0 +1,14 @@
+# Ganesha Pay Academy — анонс уроков (16:9, 17.6 с)
+
+`tools/academy_promo/academy_promo.py` (картинка) + `promo_mix.py` (звук) → `renders/ganesha_pay_academy_promo_16x9.mp4`, −15.7 LUFS.
+
+| Время | Сцена |
+|---|---|
+| 0:00–1.9 | Хук без голоса: «New to P2P processing?» (Cormorant, P2P золотом) |
+| 1.9–3.7 | Вордмарк + «Learn it for free · GANESHA PAY ACADEMY» |
+| 3.7–4.7 | Флэш 4 уроков по 0.25 с (наезд + золотая вспышка, тик на каждый кадр) |
+| 4.7–14.3 | Сплит-экран English \| Hindi: активная половина цветная, с плашкой ENGLISH / HINDI · हिन्दी и крупной фразой; вторая — стоп-кадр, ч/б, размытие. Lesson 2 «So why is the training free?» → «तो ट्रेनिंग फ़्री क्यों है?»; Lesson 4 «Accuracy is extremely important.» → «एक्यूरेसी बेहद ज़रूरी है». Внизу появляются Free · Short lessons · ~20 min a day |
+| 14.3–17.6 | CTA: вордмарк, «Learn to work online», Free · Short lessons · ~20 min a day · English & Hindi, золотая кнопка «Link below ↓» |
+
+Звук: спокойный бэд (`bed.py`) с приглушением под голос, свуши на переходах, голос — фрагменты уроков (EN — оригинал, HI — дубляж).
+Источники: финальные рендеры уроков EN (Lesson 1 v4, Lesson 2 static, Lesson 3, Lesson 4) и HI (Lesson 1–4).
