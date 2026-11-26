@@ -12,3 +12,14 @@
 
 Звук: спокойный бэд (`bed.py`) с приглушением под голос, свуши на переходах, голос — фрагменты уроков (EN — оригинал, HI — дубляж).
 Источники: финальные рендеры уроков EN (Lesson 1 v4, Lesson 2 static, Lesson 3, Lesson 4) и HI (Lesson 1–4).
+
+## v2 (26.11) — под телефон, 23.75 с, −14.3 LUFS → `renders/ganesha_pay_academy_promo_16x9_v2.mp4`
+`tools/academy_promo/academy_promo2.py` + `promo_mix2.py`. Всё на весь кадр, крупные подписи (Manrope 64, золото на ключевых словах),
+мелкие субтитры самих уроков закрыты затемнением снизу.
+1. 0–2.2 Хук: «New to P2P processing?» + «GANESHA PAY ACADEMY · FREE».
+2. Триггерные фразы на весь экран (медленный наезд): L1 «What does a processing manager actually do?» →
+   L1 «For every successfully processed transaction, you receive a percentage» → L3 «You don't need a complicated professional setup» →
+   L4 «Speed, accuracy, security and discipline make a reliable processing manager».
+3. Один языковой момент: экран пополам, каждая половина на всю высоту. L2 «So why is the training free?» слева (ENGLISH),
+   затем левая замирает в ч/б с размытием, справа хинди «तो ट्रेनिंग फ़्री क्यों है?» (हिन्दी · HINDI).
+4. CTA: вордмарк, «Learn to work online», Free · Short lessons · ~20 min a day · English & Hindi, «Link below ↓».
