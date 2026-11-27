@@ -6,7 +6,7 @@
 // Secrets (Cloudflare dashboard → Worker → Settings → Variables and Secrets): BOT_TOKEN, PLAN_URL, PLAN_KEY.
 // Vars (wrangler.toml): OWNER_ID, CHANNEL_ID, MODEL, PREMIUM_EMOJI, PLAN_STATUS. Bindings: DRAFTS (KV), AI (Workers AI).
 import { Buffer } from "node:buffer";
-import { SYSTEM, HASHTAGS, LINKS, BUTTON_LABELS } from "./prompt.js";
+import { SYSTEM, LINKS, BUTTON_LABELS } from "./prompt.js";
 import { renderPost, parseLayout, checkLayout, fallbackLayout, prepareDraft } from "./render.js";
 import PREMIUM from "../premium_emoji.json";
 
@@ -76,7 +76,7 @@ async function callModel(env, messages, temperature, model = env.MODEL || DEFAUL
 async function layout(env, d, instruction, variant) {
   const prep = prepareDraft(d.source);
   const finish = (p) => {
-    if (prep.hashtag) p.hashtag = prep.hashtag;   // the hashtag written in the draft/plan wins
+    if (prep.hashtag && !instruction) p.hashtag = prep.hashtag;   // the hashtag written in the draft/plan wins (an edit may change it)
     if (prep.links.length) {   // links written in the draft decide the buttons; the model only names them
       const own = (p.buttons || []).map((b) => (typeof b === "string" ? { link: b } : b || {}));
       p.buttons = prep.links.slice(0, 2).map((k, i) => ({ link: k, text: (own.find((b) => b.link === k) || own[i] || {}).text || BUTTON_LABELS[k] }));
@@ -168,7 +168,8 @@ async function loadPlanPost(env, chatId, date) {
     await env.DRAFTS.put(key, bytes, { expirationTtl: TTL, metadata: { mime: p.file.mime } });
     d.media = { kind: mediaKind(p.file.mime, bytes.length), mime: p.file.mime, name: p.file.name || "visual", key };
   } else {
-    d.planNotes.push(p.fileNote ? `Визуал: ${p.fileNote}` : `Визуал не прикреплён${p.visualNote ? `: «${p.visualNote}»` : ""} — добавь вручную при публикации.`);
+    const what = p.fileNote ? p.fileNote : p.visualNote ? `в плане: «${p.visualNote}»` : "в плане пусто";
+    d.askVisual = `🖼 Для поста ${p.date} нет готового визуала (${what}).\nПришли фото или видео — прикреплю к этому посту. Жду.`;
   }
   if (/posted|опубликован/i.test(p.status)) d.planNotes.push(`В плане статус «${p.status}» — этот пост уже публиковался.`);
   if (String(p.poll || "").trim()) d.planNotes.push("К посту есть опрос (колонка POLL) — его бот пока не публикует.");
@@ -177,12 +178,6 @@ async function loadPlanPost(env, chatId, date) {
 }
 
 // ---------- post helpers ----------
-function setHashtag(html, tagName) {
-  const lines = html.trimEnd().split("\n");
-  if (/^#\w+$/.test(lines[lines.length - 1].trim())) lines.pop();
-  while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
-  return `${lines.join("\n")}\n\n#${tagName}`;
-}
 function withPremium(env, html) {
   if (env.PREMIUM_EMOJI !== "on") return html;
   // replace emoji only in text (outside tags), first known custom emoji id per character
@@ -199,15 +194,72 @@ function withPremium(env, html) {
     return out.replace(/\u0000([^\u0000]+)\u0000/g, (_, ch) => `<tg-emoji emoji-id="${PREMIUM[ch][0]}">${ch}</tg-emoji>`);
   }).join("");
 }
-const urlRows = (buttons) => (buttons || []).map((b) => [{ text: b.text, url: b.url }]);
+// URL buttons under the post (style = Telegram button colour)
+const urlRows = (buttons) => (buttons || []).map((b) => [{ text: b.text, url: b.url, ...(b.style ? { style: b.style } : {}) }]);
+const STYLES = [undefined, "success", "primary", "danger"];
+const STYLE_NAME = { undefined: "⚪ обычный", success: "🟢 зелёный", primary: "🔵 синий", danger: "🔴 красный" };
+const LINK_CHOICES = [["manager", "💬 Менеджер (smmtg-mng)"], ["start", "🚀 Старт работы (smmtg-p2p)"], ["academy", "🎓 Курс EN (smmtg-acen)"], ["academy_hi", "🎓 Курс HI (smmtg-achi)"]];
+const cb = (text, data) => ({ text, callback_data: data });
 function controls(d) {
-  const tags = HASHTAGS.map((t) => ({ text: (d.hashtag === t ? "✓ #" : "#") + t, callback_data: `tag:${d.id}:${t}` }));
+  const id = d.id, btns = d.buttons || [], kb = d.kb || "main";
+  const rows = urlRows(btns);
+  if (kb === "btns") {
+    btns.forEach((b, i) => {
+      const n = btns.length > 1 ? ` ${i + 1}` : "";
+      rows.push([cb(`✏️ Текст${n}`, `bt:${id}:${i}`), cb(`🔗 Ссылка${n}`, `bl:${id}:${i}`)]);
+      rows.push([cb(`🎨${n}: ${STYLE_NAME[b.style]}`, `bc:${id}:${i}`), cb(`🗑 Удалить${n}`, `bd:${id}:${i}`)]);
+    });
+    if (btns.length < 3) rows.push([cb("➕ Добавить кнопку", `ba:${id}`)]);
+    rows.push([cb("⬅️ Готово", `bk:${id}`)]);
+    return rows;
+  }
+  if (kb.startsWith("link:")) {
+    const i = kb.slice(5);
+    for (const [k, label] of LINK_CHOICES) rows.push([cb(label, `bs:${id}:${i}:${k}`)]);
+    rows.push([cb("✍️ Своя ссылка", `bu:${id}:${i}`), cb("⬅️ Назад", `bm:${id}`)]);
+    return rows;
+  }
   return [
-    ...urlRows(d.buttons),
-    [{ text: "📤 Опубликовать", callback_data: `pub:${d.id}` }, { text: "🔁 Другой вариант", callback_data: `redo:${d.id}` }],
-    [{ text: "✏️ Поправить", callback_data: `edit:${d.id}` }, { text: d.buttons?.length ? "🔘 Убрать кнопки" : "🔘 Кнопки", callback_data: `btn:${d.id}` }],
-    tags.slice(0, 3), tags.slice(3),
+    ...rows,
+    [cb("📤 Опубликовать", `pub:${id}`), cb("🔁 Другой вариант", `redo:${id}`)],
+    [cb("✏️ Поправить текст", `edit:${id}`), cb(d.media ? "🖼 Заменить визуал" : "🖼 Добавить визуал", `vis:${id}`)],
+    [cb("🔘 Кнопки", `bm:${id}`)],
   ];
+}
+const setKb = (env, chatId, d) => tg(env, "editMessageReplyMarkup", { chat_id: chatId, message_id: d.previewId, reply_markup: { inline_keyboard: controls(d) } });
+
+// pending input: what the next message from the owner means
+const setPending = (env, chatId, obj) => env.DRAFTS.put(`pending:${chatId}`, JSON.stringify(obj), { expirationTtl: 3600 });
+async function getPending(env, chatId) {
+  const v = await env.DRAFTS.get(`pending:${chatId}`);
+  if (!v) return null;
+  try { return JSON.parse(v); } catch { return { id: v, kind: "edit" }; }
+}
+
+// a photo/video/file from the owner becomes the post's visual
+async function attachMedia(env, chatId, d, msg) {
+  let media;
+  if (msg.photo) {
+    const ph = msg.photo[msg.photo.length - 1];
+    media = { kind: "photo", fileId: ph.file_id, mime: "image/jpeg", name: "photo.jpg" };
+    // keep a copy so a long post can show the picture as a large preview above the text
+    const f = await tg(env, "getFile", { file_id: ph.file_id });
+    if (f.ok && f.result.file_path) {
+      const r = await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${f.result.file_path}`);
+      if (r.ok) {
+        const key = `img:${crypto.randomUUID().replace(/-/g, "")}`;
+        await env.DRAFTS.put(key, await r.arrayBuffer(), { expirationTtl: TTL, metadata: { mime: "image/jpeg" } });
+        media.key = key;
+      }
+    }
+  } else if (msg.video) media = { kind: "video", fileId: msg.video.file_id, mime: msg.video.mime_type || "video/mp4", name: "video.mp4" };
+  else if (msg.animation) media = { kind: "animation", fileId: msg.animation.file_id, mime: "video/mp4", name: "animation.mp4" };
+  else if (msg.document) media = { kind: "document", fileId: msg.document.file_id, mime: msg.document.mime_type || "", name: msg.document.file_name || "file" };
+  else return false;
+  for (const id of d.previewIds || [d.previewId]) if (id) await tg(env, "deleteMessage", { chat_id: chatId, message_id: id });
+  d.media = media; d.kb = "main"; d.notes = []; d.planNotes = []; delete d.askVisual;
+  await sendPreview(env, chatId, d);
+  return true;
 }
 
 // How the post is shown: text only, picture + caption, picture as a large preview above a long text, or media + separate text.
@@ -265,34 +317,22 @@ async function sendPreview(env, chatId, d) {
   if (d.media && r.mode === "preview") notes.push("Текст длиннее 1024 символов: картинка стоит крупным превью над текстом.");
   if (d.media && r.mode === "split") notes.push("Текст длиннее 1024 символов: визуал и текст уйдут двумя сообщениями.");
   if (notes.length) await tg(env, "sendMessage", { chat_id: chatId, text: `📝 ${notes.join("\n")}`, reply_parameters: r.ok ? { message_id: r.mainId } : undefined });
-  await putDraft(env, d);
-}
-async function refreshPreview(env, chatId, d) {
-  const html = withPremium(env, d.html);
-  const markup = { inline_keyboard: controls(d) };
-  const mode = postMode(d, html);
-  if (mode !== d.previewMode || mode === "error") {   // layout changed (e.g. caption no longer fits) -> new preview
-    for (const id of d.previewIds || [d.previewId]) await tg(env, "deleteMessage", { chat_id: chatId, message_id: id });
-    d.notes = []; d.planNotes = [];
-    return sendPreview(env, chatId, d);
-  }
-  let r;
-  if (mode === "caption") r = await tg(env, "editMessageCaption", { chat_id: chatId, message_id: d.previewId, caption: html, parse_mode: "HTML", reply_markup: markup });
-  else {
-    const lp = mode === "preview" ? { url: `${env.ORIGIN}/img/${d.media.key.slice(4)}`, prefer_large_media: true, show_above_text: true } : { is_disabled: true };
-    r = await tg(env, "editMessageText", { chat_id: chatId, message_id: d.previewId, text: html, parse_mode: "HTML", reply_markup: markup, link_preview_options: lp });
+  if (d.askVisual && !d.media) {
+    await tg(env, "sendMessage", { chat_id: chatId, text: d.askVisual, reply_parameters: r.ok ? { message_id: r.mainId } : undefined });
+    await setPending(env, chatId, { id: d.id, kind: "photo" });
+    delete d.askVisual;
   }
   await putDraft(env, d);
-  return r.ok;
 }
-
 // ---------- handlers ----------
 async function runFormat(env, chatId, d, instruction, variant = false) {
   await tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
   const status = await tg(env, "sendMessage", { chat_id: chatId, text: instruction ? "✏️ Правлю…" : variant ? "🔁 Делаю другой вариант…" : "⏳ Оформляю…" });
   try {
     const out = await layout(env, d, instruction, variant);
-    Object.assign(d, out);
+    const keep = d.buttonsEdited ? d.buttons : null;
+    Object.assign(d, out, { kb: "main" });
+    if (keep) d.buttons = keep;   // buttons edited by hand stay as they are
     await sendPreview(env, chatId, d);
   } catch (e) {
     console.log("format error", e.stack || e);
@@ -308,9 +348,9 @@ const HELP = `Пришли текст поста (или фото с подпи�
 Под превью:
 📤 Опубликовать — отправить в канал
 🔁 Другой вариант — переформатировать заново
-✏️ Поправить — написать, что изменить (или просто ответь на превью)
-🔘 Кнопки — показать/убрать кнопки под постом
-#… — сменить хештег
+✏️ Поправить текст — написать, что изменить (или просто ответь на превью); так же меняется хештег
+🖼 Визуал — прислать фото/видео к посту (или ответь фото на превью)
+🔘 Кнопки — текст, ссылка и цвет кнопок, добавить/удалить
 
 /plan — контент-план · /channel — куда публикую`;
 const MENU = { keyboard: [[{ text: PLAN_BUTTON }]], resize_keyboard: true, is_persistent: true };
@@ -324,14 +364,41 @@ async function onMessage(env, msg) {
   const dm = !msg.photo && text.match(DATE_RE);
   if (dm && Number(dm[1]) <= 31 && Number(dm[2]) <= 12) return loadPlanPost(env, chatId, normDate(dm[1], dm[2]));
 
-  // an edit instruction: reply to a preview, or the message right after «✏️ Поправить»
-  let targetId = null;
-  if (msg.reply_to_message) targetId = await env.DRAFTS.get(`m:${msg.reply_to_message.message_id}`);
-  if (!targetId) { targetId = await env.DRAFTS.get(`pending:${chatId}`); if (targetId) await env.DRAFTS.delete(`pending:${chatId}`); }
-  if (targetId && text) {
-    const d = await getDraft(env, targetId);
-    if (d) return runFormat(env, chatId, d, text);
+  const hasMedia = !!(msg.photo || msg.video || msg.animation || msg.document);
+  const pending = await getPending(env, chatId);
+  const clear = () => env.DRAFTS.delete(`pending:${chatId}`);
+
+  // a reply to a preview: media -> visual for that post, text -> edit instruction
+  if (msg.reply_to_message) {
+    const rid = await env.DRAFTS.get(`m:${msg.reply_to_message.message_id}`);
+    const d = rid && (await getDraft(env, rid));
+    if (d && hasMedia && !msg.caption) { if (pending?.kind === "photo") await clear(); return attachMedia(env, chatId, d, msg); }
+    if (d && text) return runFormat(env, chatId, d, text);
   }
+  if (pending) {
+    const d = await getDraft(env, pending.id);
+    if (!d) await clear();
+    else if (pending.kind === "photo" && hasMedia && !msg.caption) { await clear(); return attachMedia(env, chatId, d, msg); }
+    else if (pending.kind === "btext" && text && !hasMedia) {
+      await clear();
+      const b = d.buttons?.[pending.i];
+      if (b) { b.text = text.trim().slice(0, 64); d.buttonsEdited = true; await setKb(env, chatId, d); await putDraft(env, d); }
+      return tg(env, "sendMessage", { chat_id: chatId, text: `✅ Текст кнопки: ${text.trim().slice(0, 64)}` });
+    } else if (pending.kind === "burl" && text && !hasMedia) {
+      let u = text.trim();
+      if (/^(t\.me|www\.)/i.test(u)) u = `https://${u}`;
+      if (!/^(https?:\/\/|tg:\/\/)\S+$/i.test(u)) return tg(env, "sendMessage", { chat_id: chatId, text: "Это не похоже на ссылку. Пришли адрес вида https://… или t.me/…" });
+      await clear();
+      const b = d.buttons?.[pending.i];
+      if (!b) return;
+      const old = b.url; b.url = u; d.buttonsEdited = true; d.kb = "btns";
+      const r = await setKb(env, chatId, d);
+      if (!r.ok) { b.url = old; return tg(env, "sendMessage", { chat_id: chatId, text: `Telegram не принял ссылку: ${r.description}` }); }
+      await putDraft(env, d);
+      return tg(env, "sendMessage", { chat_id: chatId, text: `✅ Ссылка кнопки: ${u}` });
+    } else if (pending.kind === "edit" && text && !hasMedia) { await clear(); return runFormat(env, chatId, d, text); }
+  }
+  if (hasMedia && !text) return tg(env, "sendMessage", { chat_id: chatId, text: "Получил файл без текста. Чтобы прикрепить его к посту, нажми «🖼 Визуал» под превью или ответь этим фото на превью. Для нового поста пришли фото с подписью." });
   if (!text) return tg(env, "sendMessage", { chat_id: chatId, text: "Пришли текст поста или фото с подписью." });
 
   const d = { id: newId(), source: text, media: msg.photo ? { kind: "photo", fileId: msg.photo[msg.photo.length - 1].file_id } : null };
@@ -340,7 +407,7 @@ async function onMessage(env, msg) {
 
 async function onCallback(env, cq) {
   const chatId = cq.message.chat.id;
-  const [action, id, arg] = cq.data.split(":");
+  const [action, id, arg, arg2] = cq.data.split(":");
   if (action === "plan") {
     await tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: `Загружаю ${id}…` });
     return loadPlanPost(env, chatId, id);
@@ -348,22 +415,75 @@ async function onCallback(env, cq) {
   const d = await getDraft(env, id);
   if (!d) return tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: "Черновик устарел, пришли текст заново." });
   if (d.photo && !d.media) d.media = { kind: "photo", fileId: d.photo };   // drafts saved by the older version
-  d.previewId = cq.message.message_id;
+  if (!["unpub", "vrm"].includes(action)) d.previewId = cq.message.message_id;   // these come from other messages
+  const ack = (text) => tg(env, "answerCallbackQuery", { callback_query_id: cq.id, ...(text ? { text } : {}) });
+  const i = Number(arg), b = d.buttons?.[i];
 
-  if (action === "tag") {
-    d.hashtag = arg; d.html = setHashtag(d.html, arg); if (d.layout) d.layout.hashtag = arg;
-    await putDraft(env, d); await refreshPreview(env, chatId, d);
-    return tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: `#${arg}` });
+  // ----- button editor (only the keyboard changes) -----
+  if (action === "bm" || action === "bk") {
+    d.kb = action === "bm" ? "btns" : "main";
+    await setKb(env, chatId, d); await putDraft(env, d);
+    return ack(action === "bm" && !d.buttons?.length ? "Кнопок нет — нажми «➕ Добавить кнопку»" : undefined);
   }
-  if (action === "btn") {
-    d.buttons = d.buttons?.length ? [] : [{ text: BUTTON_LABELS.start, url: LINKS.start }];
-    await putDraft(env, d); await refreshPreview(env, chatId, d);
-    return tg(env, "answerCallbackQuery", { callback_query_id: cq.id });
+  if (action === "ba") {
+    d.buttons = [...(d.buttons || []), { text: BUTTON_LABELS.start, url: LINKS.start }].slice(0, 3);
+    d.buttonsEdited = true; d.kb = "btns";
+    await setKb(env, chatId, d); await putDraft(env, d);
+    return ack("Добавил кнопку START WORKING — поменяй текст и ссылку");
   }
+  if (action === "bd" && b) {
+    d.buttons.splice(i, 1); d.buttonsEdited = true;
+    await setKb(env, chatId, d); await putDraft(env, d);
+    return ack("Кнопка удалена");
+  }
+  if (action === "bc" && b) {
+    b.style = STYLES[(STYLES.indexOf(b.style) + 1) % STYLES.length];
+    if (!b.style) delete b.style;
+    d.buttonsEdited = true;
+    const r = await setKb(env, chatId, d); await putDraft(env, d);
+    return ack(r.ok ? `Цвет: ${STYLE_NAME[b.style]}` : `Telegram: ${r.description}`.slice(0, 190));
+  }
+  if (action === "bt" && b) {
+    await setPending(env, chatId, { id: d.id, kind: "btext", i }); await putDraft(env, d); await ack();
+    return tg(env, "sendMessage", { chat_id: chatId, text: `Пришли новый текст для кнопки «${b.text}» одним сообщением.\nВ канале кнопки обычно капсом: WRITE OUR MANAGER, START WORKING.` });
+  }
+  if (action === "bl" && b) {
+    d.kb = `link:${i}`;
+    await setKb(env, chatId, d); await putDraft(env, d);
+    return ack(`Сейчас: ${b.url}`.slice(0, 190));
+  }
+  if (action === "bs" && b && LINKS[arg2]) {
+    b.url = LINKS[arg2]; d.buttonsEdited = true; d.kb = "btns";
+    await setKb(env, chatId, d); await putDraft(env, d);
+    return ack(`Ссылка: ${b.url}`);
+  }
+  if (action === "bu" && b) {
+    d.kb = "btns"; await setKb(env, chatId, d);
+    await setPending(env, chatId, { id: d.id, kind: "burl", i }); await putDraft(env, d); await ack();
+    return tg(env, "sendMessage", { chat_id: chatId, text: `Пришли ссылку для кнопки «${b.text}» (https://… или t.me/…).` });
+  }
+
+  // ----- visual -----
+  if (action === "vis") {
+    await setPending(env, chatId, { id: d.id, kind: "photo" }); await putDraft(env, d); await ack();
+    return tg(env, "sendMessage", {
+      chat_id: chatId, reply_parameters: { message_id: cq.message.message_id },
+      text: d.media ? "Пришли новое фото или видео — заменю визуал этого поста." : "Пришли фото или видео — прикреплю к этому посту.",
+      reply_markup: d.media ? { inline_keyboard: [[cb("🗑 Убрать визуал", `vrm:${d.id}`)]] } : undefined,
+    });
+  }
+  if (action === "vrm") {
+    await env.DRAFTS.delete(`pending:${chatId}`);
+    for (const pid of d.previewIds || [d.previewId]) if (pid) await tg(env, "deleteMessage", { chat_id: chatId, message_id: pid });
+    d.media = null; d.kb = "main"; d.notes = []; d.planNotes = [];
+    await ack("Визуал убран");
+    return sendPreview(env, chatId, d);
+  }
+
   if (action === "edit") {
-    await env.DRAFTS.put(`pending:${chatId}`, d.id, { expirationTtl: 3600 });
-    await tg(env, "answerCallbackQuery", { callback_query_id: cq.id });
-    return tg(env, "sendMessage", { chat_id: chatId, text: "Что поправить? Напиши одним сообщением — например: «короче», «цифры в цитату», «другой заголовок», «кнопка START EARNING».", reply_parameters: { message_id: cq.message.message_id } });
+    await setPending(env, chatId, { id: d.id, kind: "edit" });
+    await putDraft(env, d); await ack();
+    return tg(env, "sendMessage", { chat_id: chatId, text: "Что поправить? Напиши одним сообщением — например: «короче», «цифры в цитату», «другой заголовок», «хештег #ask».", reply_parameters: { message_id: cq.message.message_id } });
   }
   if (action === "redo") {
     await tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: "Делаю другой вариант…" });
