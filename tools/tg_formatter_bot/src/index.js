@@ -76,6 +76,14 @@ async function callModel(env, messages, temperature, model = env.MODEL || DEFAUL
   return answerText(r);
 }
 
+// with premium emoji on, the model gets the exact list of emoji that have premium versions
+const FAV_LINE = /- Favourite emoji:[^\n]*\n/;
+function systemFor(env) {
+  if (env.PREMIUM_EMOJI === "off") return SYSTEM;
+  const list = [...new Set(Object.keys(pmap(env)).map((k) => k.replace(/\uFE0F/g, "")))].join(" ");
+  return SYSTEM.replace(FAV_LINE, `- Use ONLY these emoji (they have premium versions): ${list}\n  If the draft has other emoji, replace each with the closest one from this list. The 🇮🇳 and 👇 are also fine.\n`);
+}
+
 // Lays out the draft: model -> JSON -> checks -> one corrective retry -> best result (or the no-model fallback).
 async function layout(env, d, instruction, variant) {
   const prep = prepareDraft(d.source);
@@ -88,7 +96,7 @@ async function layout(env, d, instruction, variant) {
     return p;
   };
   const short = d.media ? " (it goes under a picture; keep the layout compact)" : "";
-  const messages = [{ role: "system", content: SYSTEM }, { role: "user", content: `Draft${short}:\n${prep.text}\nJSON:` }];
+  const messages = [{ role: "system", content: systemFor(env) }, { role: "user", content: `Draft${short}:\n${prep.text}\nJSON:` }];
   if (d.layout && (instruction || variant)) {
     messages.push({ role: "assistant", content: JSON.stringify(d.layout) });
     messages.push({ role: "user", content: instruction
@@ -378,6 +386,15 @@ async function sendPost(env, chatId, d, html, markup) {
 }
 
 const env0Premium = () => "Премиум-эмодзи в личке работают, только если у владельца бота (аккаунт, создавший его в @BotFather) есть Telegram Premium.";
+function missingPremium(env, html) {
+  const known = new Set(Object.keys(pmap(env)).map((k) => k.replace(/\uFE0F/g, "")));
+  const text = html.replace(/<[^>]+>/g, " ");
+  const miss = new Set();
+  for (const { segment } of new Intl.Segmenter("en", { granularity: "grapheme" }).segment(text)) {
+    if (/\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(segment) && !known.has(segment.replace(/\uFE0F/g, ""))) miss.add(segment);
+  }
+  return [...miss];
+}
 const emojiRefused = (r) => !r.ok && /emoji|icon/i.test(r.description || "");
 async function sendPreview(env, chatId, d) {
   let html = withPremium(env, d.html, "private");
@@ -399,6 +416,8 @@ async function sendPreview(env, chatId, d) {
   }
   if (r.ok) { d.previewId = r.mainId; d.previewIds = r.ids; d.previewMode = r.mode; await linkMsg(env, r.mainId, d.id); }
   const notes = [...(d.planNotes || []), ...(d.notes || [])];
+  const miss = premiumIn(env, "private") ? missingPremium(env, d.html) : [];
+  if (miss.length) notes.push(`Без премиум-версии: ${miss.join(" ")} — пришли ответом их премиум-версии (можно все одним сообщением), заменю и запомню.`);
   if (d.media && r.mode === "preview") notes.push("Текст длиннее 1024 символов: картинка стоит крупным превью над текстом.");
   if (d.media && r.mode === "split") notes.push("Текст длиннее 1024 символов: визуал и текст уйдут двумя сообщениями.");
   if (notes.length) await tg(env, "sendMessage", { chat_id: chatId, text: `📝 ${notes.join("\n")}`, reply_parameters: r.ok ? { message_id: r.mainId } : undefined });
@@ -406,7 +425,7 @@ async function sendPreview(env, chatId, d) {
     await tg(env, "sendMessage", { chat_id: chatId, text: d.askVisual, reply_parameters: r.ok ? { message_id: r.mainId } : undefined });
     await setPending(env, chatId, { id: d.id, kind: "photo" });
     delete d.askVisual;
-  }
+  } else if (miss.length) await setPending(env, chatId, { id: d.id, kind: "pemoji" });
   await putDraft(env, d);
 }
 // ---------- handlers ----------
@@ -452,7 +471,7 @@ async function onMessage(env, msg) {
   }
   if (text.startsWith("/plan") || text === PLAN_BUTTON) return showPlan(env, chatId);
   if (text.startsWith("/emoji")) {
-    await setPending(env, chatId, { kind: "pemoji" });
+    await setPending(env, chatId, { kind: "pemoji", id: null });
     return tg(env, "sendMessage", { chat_id: chatId, text: "Пришли премиум-эмодзи, которые бот должен ставить в постах (можно сразу много). Каждый заменит свой обычный аналог: например премиум-🔥 вместо обычного 🔥.\nЭмодзи из постов канала бот уже знает." });
   }
   const dm = !msg.photo && text.match(DATE_RE);
@@ -476,7 +495,15 @@ async function onMessage(env, msg) {
     const map = JSON.parse((await env.DRAFTS.get("pe:map")) || "{}");
     for (const e of found) map[e.emoji] = e.ceid;
     await env.DRAFTS.put("pe:map", JSON.stringify(map));
-    return tg(env, "sendMessage", { chat_id: chatId, text: `✅ Запомнил: ${found.map((e) => e.emoji).join(" ")}\nТеперь эти эмодзи в постах будут премиум-версиями. Всего своих: ${Object.keys(map).length}.` });
+    env.PMAP = { ...pmap(env), ...map };
+    await tg(env, "sendMessage", { chat_id: chatId, text: `✅ Запомнил: ${found.map((e) => e.emoji).join(" ")}\nТеперь эти эмодзи во всех постах будут премиум-версиями. Всего своих: ${Object.keys(map).length}.` });
+    const d = pending.id && (await getDraft(env, pending.id));
+    if (d && !d.published) {   // show the post again with the new premium emoji
+      for (const pid of d.previewIds || [d.previewId]) if (pid) await tg(env, "deleteMessage", { chat_id: chatId, message_id: pid });
+      d.notes = []; d.planNotes = []; d.kb = "main";
+      await sendPreview(env, chatId, d);
+    }
+    return;
   }
   if (pending) {
     const d = await getDraft(env, pending.id);
@@ -554,7 +581,7 @@ async function onCallback(env, cq) {
   if (action === "be" && list[j]) { d.kb = `${kind}:${j}`; return save(); }
   if (action === "ba" && kind === "u") {
     if (d.buttons.length >= 3) return ack("Не больше 3 кнопок-ссылок");
-    d.buttons.push({ text: BUTTON_LABELS.start, url: LINKS.start }); d.buttonsEdited = true;
+    d.buttons.push({ text: BUTTON_LABELS.start, url: LINKS.start, style: "success" }); d.buttonsEdited = true;
     d.kb = `u:${d.buttons.length - 1}`;
     return save("Добавил START WORKING — поменяй текст и ссылку");
   }

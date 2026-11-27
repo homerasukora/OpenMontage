@@ -94,7 +94,7 @@ export function layoutButtons(p) {
     seen.add(link);
     let text = typeof b === "object" ? String(b.text || "").replace(/[*_\[\]<>]/g, "").replace(/\s+/g, " ").trim() : "";
     if (!text || text.length > 32) text = BUTTON_LABELS[link];
-    res.push({ text: text.toUpperCase(), url: LINKS[link] });
+    res.push({ text: text.toUpperCase(), url: LINKS[link], style: "success" });   // call-to-action buttons are green by default
   }
   return res.slice(0, 2);
 }
