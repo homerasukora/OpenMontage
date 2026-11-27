@@ -179,10 +179,13 @@ async function loadPlanPost(env, chatId, date) {
 }
 
 // ---------- post helpers ----------
+const BASE_PMAP = Object.fromEntries(Object.entries(PREMIUM).map(([k, v]) => [k, v[0]]));
+const pmap = (env) => env.PMAP || BASE_PMAP;
 function withPremium(env, html) {
   if (env.PREMIUM_EMOJI !== "on") return html;
-  // replace emoji only in text (outside tags), first known custom emoji id per character
-  const keys = Object.keys(PREMIUM).sort((a, b) => b.length - a.length);
+  const PM = pmap(env);
+  // replace emoji only in text (outside tags) with the premium version
+  const keys = Object.keys(PM).sort((a, b) => b.length - a.length);
   return html.split(/(<[^>]+>)/).map((part) => {
     if (part.startsWith("<")) return part;
     let out = part;
@@ -192,7 +195,7 @@ function withPremium(env, html) {
         if (variant && out.includes(variant)) out = out.split(variant).join(`\u0000${k}\u0000`);
       }
     }
-    return out.replace(/\u0000([^\u0000]+)\u0000/g, (_, ch) => `<tg-emoji emoji-id="${PREMIUM[ch][0]}">${ch}</tg-emoji>`);
+    return out.replace(/\u0000([^\u0000]+)\u0000/g, (_, ch) => `<tg-emoji emoji-id="${PM[ch]}">${ch}</tg-emoji>`);
   }).join("");
 }
 // ---------- buttons under the post ----------
@@ -212,8 +215,19 @@ function reactionButton(env, r, count, data) {
   return styled({ text, callback_data: data, ...(premium ? { icon_custom_emoji_id: r.ceid } : {}) }, r.style);
 }
 // the post's own buttons; in the channel reactions are live (r:i), in the preview they only explain themselves
+const AUTO_ICON = { manager: "💬", start: "🚀", academy: "👨‍🎓", academy_hi: "👨‍🎓" };
+function linkIcon(env, b) {
+  if (env.PREMIUM_EMOJI !== "on" || b.ceid === null) return null;
+  if (b.ceid) return b.ceid;
+  const k = Object.keys(LINKS).find((x) => LINKS[x] === b.url);
+  return (k && pmap(env)[AUTO_ICON[k]]) || null;
+}
+function linkButton(env, b) {
+  const icon = linkIcon(env, b);
+  return styled({ text: b.text, url: b.url, ...(icon ? { icon_custom_emoji_id: icon } : {}) }, b.style);
+}
 function postRows(env, d, { channel = false, counts = [] } = {}) {
-  const rows = (d.buttons || []).map((b) => [styled({ text: b.text, url: b.url }, b.style)]);
+  const rows = (d.buttons || []).map((b) => [linkButton(env, b)]);
   const rx = d.reactions || [];
   if (rx.length) rows.push(rx.map((r, i) => reactionButton(env, r, counts[i] || 0, channel ? `r:${i}` : `rp:${d.id}`)));
   return rows;
@@ -232,8 +246,8 @@ function controls(env, d) {
   if (m) {
     const i = Number(m[2]);
     if (m[1] === "u" && btns[i]) return [
-      [styled({ text: btns[i].text, url: btns[i].url }, btns[i].style)],
-      [cb("✏️ Текст", `bt:${id}:${i}`), cb("🔗 Ссылка", `bl:${id}:${i}`)],
+      [linkButton(env, btns[i])],
+      [cb("✏️ Текст", `bt:${id}:${i}`), cb("🔗 Ссылка", `bl:${id}:${i}`), cb("😀 Эмодзи", `bi:${id}:${i}`)],
       [cb(`${DOT[btns[i].style]} Цвет`, `bc:${id}:u:${i}`), cb("🗑 Удалить", `bd:${id}:u:${i}`)],
       [cb("⬅️ Назад", `bm:${id}`)],
     ];
@@ -350,10 +364,18 @@ async function sendPost(env, chatId, d, html, markup) {
   return { ok: true, ids, mainId: r.result.message_id, mode };
 }
 
+const emojiRefused = (r) => !r.ok && /emoji|icon/i.test(r.description || "");
 async function sendPreview(env, chatId, d) {
-  const html = withPremium(env, d.html);
-  const markup = { inline_keyboard: controls(env, d) };
+  let html = withPremium(env, d.html);
+  let markup = { inline_keyboard: controls(env, d) };
   let r = await sendPost(env, chatId, d, html, markup);
+  if (emojiRefused(r) && env.PREMIUM_EMOJI === "on") {   // e.g. the Fragment username is not attached yet
+    const why = r.description;
+    env = { ...env, PREMIUM_EMOJI: "off" };
+    html = d.html; markup = { inline_keyboard: controls(env, d) };
+    r = await sendPost(env, chatId, d, html, markup);
+    d.notes = [...(d.notes || []), `Telegram не принял премиум-эмодзи (${why}) — показал с обычными. Проверь /channel: должен быть виден юзернейм с Fragment.`];
+  }
   if (!r.ok) {   // show the HTML raw so nothing is lost, keep the buttons
     const t = await tg(env, "sendMessage", {
       chat_id: chatId, parse_mode: "HTML", reply_markup: markup,
@@ -401,15 +423,24 @@ const HELP = `Пришли текст поста (или фото с подпи�
 🖼 Визуал — прислать фото/видео к посту (или ответь фото на превью)
 🔘 Кнопки — текст, ссылка и цвет кнопок, добавить/удалить
 
-/plan — контент-план · /channel — куда публикую`;
+/plan — контент-план · /emoji — свои премиум-эмодзи · /channel — настройки`;
 const MENU = { keyboard: [[{ text: PLAN_BUTTON }]], resize_keyboard: true, is_persistent: true };
 
 async function onMessage(env, msg) {
   const chatId = msg.chat.id;
   const text = msg.text ?? msg.caption ?? "";
   if (text.startsWith("/start") || text.startsWith("/help")) return tg(env, "sendMessage", { chat_id: chatId, text: HELP, reply_markup: MENU });
-  if (text.startsWith("/channel")) return tg(env, "sendMessage", { chat_id: chatId, text: `Канал для публикации: ${env.CHANNEL_ID}\nКонтент-план: ${env.PLAN_URL ? "подключён" : "не подключён"}\nПремиум-эмодзи: ${env.PREMIUM_EMOJI === "on" ? "вкл" : "выкл"}` });
+  if (text.startsWith("/channel")) {
+    const me = await tg(env, "getMe", {});
+    const info = me.ok ? await tg(env, "getChat", { chat_id: me.result.id }) : null;
+    const names = info?.ok ? [info.result.username, ...(info.result.active_usernames || [])].filter((v, k, a) => v && a.indexOf(v) === k) : [];
+    return tg(env, "sendMessage", { chat_id: chatId, text: `Канал для публикации: ${env.CHANNEL_ID}\nКонтент-план: ${env.PLAN_URL ? "подключён" : "не подключён"}\nПремиум-эмодзи: ${env.PREMIUM_EMOJI === "on" ? "вкл" : "выкл"}\nЮзернеймы бота: ${names.length ? names.map((n) => "@" + n).join(", ") : "—"}` });
+  }
   if (text.startsWith("/plan") || text === PLAN_BUTTON) return showPlan(env, chatId);
+  if (text.startsWith("/emoji")) {
+    await setPending(env, chatId, { kind: "pemoji" });
+    return tg(env, "sendMessage", { chat_id: chatId, text: "Пришли премиум-эмодзи, которые бот должен ставить в постах (можно сразу много). Каждый заменит свой обычный аналог: например премиум-🔥 вместо обычного 🔥.\nЭмодзи из постов канала бот уже знает." });
+  }
   const dm = !msg.photo && text.match(DATE_RE);
   if (dm && Number(dm[1]) <= 31 && Number(dm[2]) <= 12) return loadPlanPost(env, chatId, normDate(dm[1], dm[2]));
 
@@ -423,6 +454,15 @@ async function onMessage(env, msg) {
     const d = rid && (await getDraft(env, rid));
     if (d && hasMedia && !msg.caption) { if (pending?.kind === "photo") await clear(); return attachMedia(env, chatId, d, msg); }
     if (d && text) return runFormat(env, chatId, d, text);
+  }
+  if (pending?.kind === "pemoji" && text && !hasMedia) {   // /emoji: the owner's premium versions of ordinary emoji
+    await clear();
+    const found = emojisOf(msg).filter((e) => e.ceid);
+    if (!found.length) return tg(env, "sendMessage", { chat_id: chatId, text: "Премиум-эмодзи в сообщении не нашёл. Отправь /emoji ещё раз и пришли именно премиум-эмодзи." });
+    const map = JSON.parse((await env.DRAFTS.get("pe:map")) || "{}");
+    for (const e of found) map[e.emoji] = e.ceid;
+    await env.DRAFTS.put("pe:map", JSON.stringify(map));
+    return tg(env, "sendMessage", { chat_id: chatId, text: `✅ Запомнил: ${found.map((e) => e.emoji).join(" ")}\nТеперь эти эмодзи в постах будут премиум-версиями. Всего своих: ${Object.keys(map).length}.` });
   }
   if (pending) {
     const d = await getDraft(env, pending.id);
@@ -445,6 +485,18 @@ async function onMessage(env, msg) {
       if (!r.ok) { b.url = old; return tg(env, "sendMessage", { chat_id: chatId, text: `Telegram не принял ссылку: ${r.description}` }); }
       await putDraft(env, d);
       return tg(env, "sendMessage", { chat_id: chatId, text: `✅ Ссылка кнопки: ${u}` });
+    } else if (pending.kind === "bicon" && text && !hasMedia) {
+      const b = d.buttons?.[pending.i];
+      const found = emojisOf(msg).find((e) => e.ceid);
+      if (!b) { await clear(); return; }
+      if (/^(нет|no|-)$/i.test(text.trim())) b.ceid = null;
+      else if (/^(авто|auto)$/i.test(text.trim())) delete b.ceid;
+      else if (found) b.ceid = found.ceid;
+      else return tg(env, "sendMessage", { chat_id: chatId, text: "На кнопку ставится только премиум-эмодзи. Пришли его (или «нет» / «авто»)." });
+      await clear();
+      d.buttonsEdited = true; d.kb = `u:${pending.i}`;
+      const r = await setKb(env, chatId, d); await putDraft(env, d);
+      return tg(env, "sendMessage", { chat_id: chatId, text: r.ok ? (env.PREMIUM_EMOJI === "on" ? "✅ Эмодзи кнопки обновлён." : "✅ Сохранил. Покажется, когда включим премиум-эмодзи.") : `Telegram: ${r.description}` });
     } else if (pending.kind === "remoji" && text && !hasMedia) {
       const found = emojisOf(msg);
       if (!found.length) return tg(env, "sendMessage", { chat_id: chatId, text: "Не нашёл эмодзи. Пришли одно или несколько, например ❤️🔥👍 (можно премиум)." });
@@ -514,6 +566,10 @@ async function onCallback(env, cq) {
     return tg(env, "sendMessage", { chat_id: chatId, text: `Пришли новый текст для кнопки «${b.text}».\nВ канале кнопки обычно капсом: WRITE OUR MANAGER, START WORKING.` });
   }
   if (action === "bl" && b) { d.kb = `l:${i}`; return save(); }
+  if (action === "bi" && b) {
+    await setPending(env, chatId, { id: d.id, kind: "bicon", i }); await putDraft(env, d); await ack();
+    return tg(env, "sendMessage", { chat_id: chatId, text: `Пришли премиум-эмодзи для кнопки «${b.text}» — он встанет перед текстом.\nНапиши «нет», чтобы убрать, или «авто» — эмодзи по ссылке (💬 менеджер, 🚀 старт, 👨‍🎓 курс).` });
+  }
   if (action === "bs" && b && LINKS[arg2]) { b.url = LINKS[arg2]; d.buttonsEdited = true; d.kb = `u:${i}`; return save("Ссылка изменена"); }
   if (action === "bu" && b) {
     await setPending(env, chatId, { id: d.id, kind: "burl", i }); await putDraft(env, d); await ack();
@@ -550,7 +606,10 @@ async function onCallback(env, cq) {
   if (action === "pub") {
     const html = withPremium(env, d.html);
     const rows = postRows(env, d, { channel: true });
-    const r = await sendPost(env, env.CHANNEL_ID, d, html, rows.length ? { inline_keyboard: rows } : undefined);
+    let r = await sendPost(env, env.CHANNEL_ID, d, html, rows.length ? { inline_keyboard: rows } : undefined);
+    if (emojiRefused(r) && env.PREMIUM_EMOJI === "on") {
+      return tg(env, "answerCallbackQuery", { callback_query_id: cq.id, show_alert: true, text: `Не опубликовано: Telegram не принял премиум-эмодзи (${r.description}). Проверь, что юзернейм с Fragment привязан к боту (/channel).`.slice(0, 190) });
+    }
     if (!r.ok) return tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: `Не опубликовано: ${r.description}`.slice(0, 190), show_alert: true });
     d.published = { chat: env.CHANNEL_ID, id: r.mainId, ids: r.ids }; await putDraft(env, d);
     if (d.reactions?.length) {   // counters live in a Durable Object per channel message
@@ -614,6 +673,9 @@ export default {
   async fetch(request, env0, ctx) {
     const url = new URL(request.url);
     const env = { ...env0, ORIGIN: url.origin };
+    if (env.PREMIUM_EMOJI === "on" && url.pathname === "/webhook") {
+      try { env.PMAP = { ...BASE_PMAP, ...JSON.parse((await env.DRAFTS.get("pe:map")) || "{}") }; } catch {}
+    }
     if (request.method === "GET" && url.pathname.startsWith("/img/")) {   // visuals for large link previews (random ids)
       const id = url.pathname.slice(5).replace(/\.\w+$/, "");
       if (!/^[0-9a-f]{32}$/.test(id)) return new Response("not found", { status: 404 });
@@ -624,7 +686,7 @@ export default {
     if (request.method === "GET" && url.pathname === "/setup") {
       const secret = await webhookSecret(env);
       const hook = await tg(env, "setWebhook", { url: `${url.origin}/webhook`, secret_token: secret, allowed_updates: ["message", "callback_query", "my_chat_member"], drop_pending_updates: true });
-      const cmds = await tg(env, "setMyCommands", { commands: [{ command: "plan", description: "Посты из контент-плана" }, { command: "help", description: "Как пользоваться" }, { command: "channel", description: "Куда публикую" }] });
+      const cmds = await tg(env, "setMyCommands", { commands: [{ command: "plan", description: "Посты из контент-плана" }, { command: "emoji", description: "Свои премиум-эмодзи" }, { command: "help", description: "Как пользоваться" }, { command: "channel", description: "Настройки и юзернеймы бота" }] });
       return Response.json({ webhook: hook.ok ? "ok" : hook.description, commands: cmds.ok ? "ok" : cmds.description });
     }
     if (request.method === "POST" && url.pathname === "/webhook") {

@@ -19,8 +19,11 @@ Telegram-бот на Cloudflare Workers. Владелец присылает ч�
 - Доступ: только `OWNER_ID`, остальным «Это закрытый бот.»
 - Ссылки на кнопках: менеджер `smmtg-mng`, старт работы `smmtg-p2p`, Academy EN `smmtg-acen` и HI `smmtg-achi`.
   Подписи — короткие CAPS, как в канале (WRITE OUR MANAGER, START WORKING, ENGLISH COURSE…).
-- Премиум-эмодзи: `PREMIUM_EMOJI="off"`. Включать после покупки username на Fragment
-  (id эмодзи из канала лежат в `premium_emoji.json`).
+- Премиум-эмодзи (`PREMIUM_EMOJI="on"`, нужен collectible username с Fragment, привязанный к боту):
+  обычные эмодзи в тексте заменяются премиум-версиями — из постов канала (`premium_emoji.json`)
+  и свои, присланные через /emoji (хранятся в KV `pe:map`). На кнопке-ссылке — премиум-иконка
+  (авто по ссылке: 💬 менеджер, 🚀 старт, 👨‍🎓 курс; или своя через «😀 Эмодзи»), на реакциях — присланный премиум-эмодзи.
+  Если Telegram отказывает, превью уходит с обычными эмодзи и заметкой; /channel показывает юзернеймы бота.
 
 ## Контент-план
 Кнопка «📅 Контент-план» (или /plan) показывает даты из Google Sheets «Content Plan / Ganesha Pay (TG / FB / X)»
@@ -83,6 +86,7 @@ AI_FAIL=1 node test/sim.mjs $PWD/dist/index.js # ИИ недоступен -> р
 node test/plan_sim.mjs $PWD/dist/index.js       # контент-план: даты, пост с картинкой, публикация, статус
 node test/plan_sim.mjs $PWD/dist/index.js long  # длинный текст -> картинка крупным превью
 node test/edit_sim.mjs $PWD/dist/index.js       # нет визуала -> фото; редактор кнопок; реакции и счётчики
+node test/premium_sim.mjs $PWD/dist/index.js    # премиум-эмодзи в тексте и на кнопках, /emoji, запасной вариант
 ```
 
 ## Настройка промпта на живой модели
