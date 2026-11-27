@@ -52,19 +52,27 @@ function rows() {
   monthSheets().forEach(function (ms) {
     const range = ms.sh.getDataRange();
     const values = range.getValues();
+    const shown = range.getDisplayValues();   // text as you see it in the sheet (dates like "29.11" may be stored as real dates)
     const rich = range.getRichTextValues();
     let cols = null;
     for (let r = 0; r < values.length; r++) {
-      const row = values[r].map(function (v) { return typeof v === "string" ? v.trim() : v; });
-      const upper = row.map(function (v) { return String(v).toUpperCase(); });
+      const row = shown[r].map(function (v) { return String(v).trim(); });
+      const upper = row.map(function (v) { return v.toUpperCase(); });
       if (upper.indexOf("TEXT") >= 0 && upper.indexOf("STATUS") >= 0) {   // header row (repeats every week)
         cols = {};
         upper.forEach(function (h, i) { if (h) cols[h] = i; });
         continue;
       }
       if (!cols) continue;
-      const dm = String(row[0]).match(/^(\d{1,2})\.(\d{1,2})/);
-      if (!dm) continue;
+      const dateCol = cols["DATE"] !== undefined ? cols["DATE"] : 0;
+      const raw = values[r][dateCol];
+      let dd, mm;
+      if (raw instanceof Date) { dd = raw.getDate(); mm = raw.getMonth() + 1; }
+      else {
+        const dm = row[dateCol].match(/^(\d{1,2})[.\/](\d{1,2})/);
+        if (!dm) continue;
+        dd = Number(dm[1]); mm = Number(dm[2]);
+      }
       const get = function (name) { return cols[name] === undefined ? "" : row[cols[name]]; };
       const visCol = cols["LINK TO VISUAL"] !== undefined ? cols["LINK TO VISUAL"] : cols["VISUAL"];
       let visual = "", visualLink = "", cellImage = null;
@@ -77,7 +85,6 @@ function rows() {
           visualLink = (rt && rt.getLinkUrl()) || (visual.match(/https?:\/\/\S+/) || [""])[0];
         }
       }
-      const dd = Number(dm[1]), mm = Number(dm[2]);
       all.push({
         sheet: ms.sh.getName(), row: r + 1, statusCol: cols["STATUS"] === undefined ? null : cols["STATUS"] + 1,
         date: ("0" + dd).slice(-2) + "." + ("0" + mm).slice(-2), when: toDate(dd, mm),
@@ -158,3 +165,14 @@ function setStatus(date, value) {
 
 // Run once from the editor (▶ testList) to grant permissions and check the output in the log.
 function testList() { Logger.log(JSON.stringify(listPosts(3, 14)).slice(0, 2000)); }
+
+// If testList shows no posts: run testSheets and send the log.
+function testSheets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  Logger.log("Таблица: " + ss.getName());
+  ss.getSheets().forEach(function (sh) {
+    const v = sh.getRange(1, 1, Math.min(8, sh.getLastRow() || 1), 1).getValues().map(function (r) { return (r[0] instanceof Date ? "Date:" : "") + String(r[0]).slice(0, 25); });
+    Logger.log("Вкладка «" + sh.getName() + "»: " + JSON.stringify(v));
+  });
+  Logger.log("Найдено строк с датами: " + rows().length);
+}
