@@ -36,4 +36,4 @@ console.log("reaction row:", JSON.stringify(sent.filter((s) => s[0] === "editMes
 refuse = true; sent.length = 0;
 await say("Another post. Hot offer. Start today");
 const fb = sent.filter((s) => s[0] === "sendMessage" && s[1].parse_mode === "HTML");
-console.log("fallback preview has tg-emoji:", /tg-emoji/.test(fb.at(-1)[1].text), "| note:", sent.find((s) => s[1].text?.startsWith?.("📝"))?.[1].text.slice(0, 80));
+console.log("fallback preview has tg-emoji:", /tg-emoji/.test(fb.at(-1)[1].text), "| note:", sent.find((s) => s[1].text?.startsWith?.("📝"))?.[1].text.split("\n").filter((l) => l.includes("премиум")).join(" "));
