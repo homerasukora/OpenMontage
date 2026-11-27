@@ -16,9 +16,9 @@ export function indianRupees(s) {
 // inline markers -> HTML. quote=true: the plain parts are wrapped in <i>, links stay bold-italic.
 function inline(raw, { quote = false } = {}) {
   const text = indianRupees(String(raw ?? "").replace(/\s*\n\s*/g, " ").trim());
-  const parts = text.split(/(\[[^\]\n]+\]\((?:manager|academy)\))/);
+  const parts = text.split(/(\[[^\]\n]+\]\((?:manager|start|academy|academy_hi)\))/);
   const out = parts.map((p) => {
-    const link = p.match(/^\[([^\]\n]+)\]\((manager|academy)\)$/);
+    const link = p.match(/^\[([^\]\n]+)\]\((manager|start|academy|academy_hi)\)$/);
     if (link) return `<a href="${LINKS[link[2]]}"><b><i>${esc(link[1].replace(/[*_]/g, ""))}</i></b></a>`;
     let h = esc(p);
     h = h.replace(/\*\*\*([^*\n]+?)\*\*\*/g, quote ? "<b>$1</b>" : "<b><i>$1</i></b>");
@@ -30,7 +30,7 @@ function inline(raw, { quote = false } = {}) {
     const lead = h.match(/^\s*/)[0], tail = h.match(/\s*$/)[0];
     return `${lead}<i>${h.trim()}</i>${tail}`;
   }).join("");
-  return balanced(out) ? out : esc(text.replace(/[*_]{2,}|\[|\]\((manager|academy)\)/g, ""));
+  return balanced(out) ? out : esc(text.replace(/[*_]{2,}|\[|\]\((manager|start|academy|academy_hi)\)/g, ""));
 }
 
 function balanced(html) {
@@ -82,8 +82,21 @@ export function renderPost(p) {
   if (cta) out.push(`<b>${inline(cta).replace(/<\/?b>/g, "")} 👇</b>`);
   const tag = HASHTAGS.includes(p.hashtag) ? p.hashtag : "knowledge";
   out.push(`#${tag}`);
-  const buttons = [...new Set((p.buttons || []).filter((k) => LINKS[k]))].slice(0, 2).map((k) => ({ text: BUTTON_LABELS[k], url: LINKS[k] }));
-  return { html: out.join("\n\n"), hashtag: tag, buttons };
+  return { html: out.join("\n\n"), hashtag: tag, buttons: layoutButtons(p) };
+}
+
+// [{link, text}] or ["manager"] -> [{text, url}]; labels are short caps without markup or numbers that are not in the post
+export function layoutButtons(p) {
+  const seen = new Set(), res = [];
+  for (const b of p.buttons || []) {
+    const link = typeof b === "string" ? b : b?.link;
+    if (!LINKS[link] || seen.has(link)) continue;
+    seen.add(link);
+    let text = typeof b === "object" ? String(b.text || "").replace(/[*_\[\]<>]/g, "").replace(/\s+/g, " ").trim() : "";
+    if (!text || text.length > 32) text = BUTTON_LABELS[link];
+    res.push({ text: text.toUpperCase(), url: LINKS[link] });
+  }
+  return res.slice(0, 2);
 }
 
 // ---------- parsing the model answer ----------
@@ -100,7 +113,7 @@ export function parseLayout(text) {
 }
 
 // ---------- fidelity checks (draft vs layout) ----------
-const plain = (s) => String(s ?? "").replace(/\[([^\]]+)\]\((?:manager|academy)\)/g, "$1").replace(/[*_]/g, "");
+const plain = (s) => String(s ?? "").replace(/\[([^\]]+)\]\((?:manager|start|academy|academy_hi)\)/g, "$1").replace(/[*_]/g, "");
 export function layoutText(p, { headline = true } = {}) {
   const parts = [headline ? p.headline : "", p.cta];
   for (const b of p.blocks || []) { parts.push(b?.text); for (const i of b?.items || []) parts.push(i?.text); }
@@ -177,4 +190,21 @@ export function fallbackLayout(source) {
     else { quote = null; blocks.push({ type: "text", text: l }); }
   }
   return { headline, headline_emoji: "✨", blocks, cta: "", hashtag: "knowledge", buttons: [] };
+}
+
+// ---------- draft preparation: links -> buttons, hashtag -> fixed, placeholders -> notes ----------
+const LINK_BY_URL = Object.fromEntries(Object.entries(LINKS).map(([k, u]) => [u.replace(/^https?:\/\//, ""), k]));
+export function prepareDraft(source) {
+  let text = String(source || "").replace(/\r/g, "");
+  const links = [], notes = [];
+  text = text.replace(/https?:\/\/\S+/g, (u) => {
+    const k = LINK_BY_URL[u.replace(/^https?:\/\//, "").replace(/[).,]+$/, "")];
+    if (k) links.push(k); else notes.push(`Ссылка из текста не в списке кнопок, вставь её вручную при необходимости: ${u}`);
+    return "";
+  });
+  let hashtag = null;
+  text = text.replace(/(^|\s)#(knowledge|cases|terms|meme|ask)\b/gi, (m, sp, t) => { hashtag = hashtag || t.toLowerCase(); return sp; });
+  for (const m of text.match(/\[[A-Z][^\]\n]{3,80}\]/g) || []) notes.push(`В тексте заглушка ${m} — замени перед публикацией.`);
+  text = text.split("\n").map((l) => l.replace(/[ \t]+$/, "")).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return { text, hashtag, links: [...new Set(links)], notes };
 }

@@ -1,11 +1,15 @@
 // Prompt for the Workers AI model. The model returns only the STRUCTURE of the post as JSON;
 // src/render.js turns it into Telegram HTML, so the markup is always valid and in the house style.
 
+// Tracking links used under the channel's posts.
 export const LINKS = {
-  manager: "https://g.ganeshapay.io/smmtg-mng",
-  academy: "https://g.ganeshapay.io/smmtg-acen",
+  manager: "https://g.ganeshapay.io/smmtg-mng",    // talk to the personal manager
+  start: "https://g.ganeshapay.io/smmtg-p2p",      // start working / earning / trial
+  academy: "https://g.ganeshapay.io/smmtg-acen",   // free Academy course (English)
+  academy_hi: "https://g.ganeshapay.io/smmtg-achi", // free Academy course (Hindi)
 };
-export const BUTTON_LABELS = { manager: "Message a manager", academy: "Free P2P course" };
+// default labels (the channel's buttons are short and in caps)
+export const BUTTON_LABELS = { manager: "WRITE OUR MANAGER", start: "START WORKING", academy: "FREE P2P COURSE", academy_hi: "HINDI COURSE" };
 export const HASHTAGS = ["knowledge", "cases", "terms", "meme", "ask"];
 
 // Few-shot pairs: a plain draft -> the JSON of the published post (posts from t.me/ganeshapay).
@@ -23,7 +27,7 @@ Answer your questions`,
         { type: "text", text: "✅ [Ganesha Pay Academy](academy) covers the workflow in 8 learning cycles: the dashboard, payments, rules and practical exercises." },
         { type: "quote", items: [{ emoji: "⏳", text: "Around 20 minutes a day" }, { emoji: "🎁", text: "Free to join" }] },
       ],
-      cta: "Answer your questions", hashtag: "knowledge", buttons: ["academy"],
+      cta: "Answer your questions", hashtag: "knowledge", buttons: [{ link: "academy", text: "ENGLISH COURSE" }, { link: "academy_hi", text: "HINDI COURSE" }],
     },
   },
   {
@@ -49,7 +53,7 @@ Message our manager now`,
           { emoji: "💸", text: "Daily commission payouts" },
         ] },
       ],
-      cta: "Message our manager now", hashtag: "terms", buttons: ["manager"],
+      cta: "Message our manager now", hashtag: "terms", buttons: [{ link: "manager", text: "WRITE OUR MANAGER" }],
     },
   },
   {
@@ -111,13 +115,14 @@ JSON SHAPE
   ],
   "cta": "the call-to-action line from the draft, or \\"\\" if there is none",
   "hashtag": "knowledge | cases | terms | meme | ask",
-  "buttons": ["manager" and/or "academy", or empty]
+  "buttons": [{"link": "manager | start | academy | academy_hi", "text": "SHORT CAPS LABEL"}]   (0–2 buttons)
 }
 
 EMPHASIS MARKERS inside "text" (the code turns them into Telegram formatting):
 **bold** for key figures (**3%**, **₹1,00,000+**, **24/7**); ***bold italic*** for names of people, the brand and key terms;
 *italic* for a soft accent; __underline__ for a short lead-in line ending with ":";
 [link text](manager) — link to the personal manager; [link text](academy) — link to the free Academy course. No other links.
+Never put URLs into the text; links live on the buttons.
 
 LAYOUT HABITS OF THE CHANNEL
 - 2–6 blocks. Paragraphs are short. At most one emoji per paragraph or quote item.
@@ -128,7 +133,12 @@ LAYOUT HABITS OF THE CHANNEL
   meme = humour; ask = greetings, questions to the audience.
 - cta: the draft's last line is usually the call to action when it asks to act or sells
   ("Earn up to …", "hurry up", "Message our manager", "Join the course", "Share your wishes below"). Put it ONLY in "cta", not in a block.
-- buttons: "manager" when the post invites people to talk to a manager or start working; "academy" when it is about learning or the free course.
+- buttons: one call-to-action button under the post that matches its CTA (two only for the English + Hindi course pair).
+  "manager" = talk to / write to the manager; "start" = start working, start earning, try the trial, join;
+  "academy" / "academy_hi" = the free course in English / Hindi. No button for greetings, memes and pure questions to the audience.
+  Button text: 2–4 words in CAPS, an action, like the channel's buttons:
+  WRITE OUR MANAGER · WRITE TO MANAGER · START WORKING · START EARNING · START 3 DAY TRIAL · ENGLISH COURSE · HINDI COURSE.
+  Make it fit this post (e.g. ASK ABOUT PAYOUTS, CHECK YOUR SETUP, TALK TO ARNOLD) without new promises or numbers.
 
 EXAMPLES
 ${SHOTS.map((s) => `Draft:\n${s.draft}\nJSON:\n${JSON.stringify(s.json)}`).join("\n\n")}`;

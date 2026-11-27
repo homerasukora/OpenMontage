@@ -9,6 +9,7 @@ OWNER_ID = "726625635"
 CHANNEL_ID = "-1005659106771"
 MODEL = "@cf/qwen/qwen3.8-27b"
 PREMIUM_EMOJI = "off"
+PLAN_STATUS = "on"   # after publishing, set STATUS = Posted in the content plan
 
 [ai]
 binding = "AI"

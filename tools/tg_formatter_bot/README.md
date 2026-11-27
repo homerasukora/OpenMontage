@@ -17,9 +17,35 @@ Telegram-бот на Cloudflare Workers. Владелец присылает ч�
 - Если ИИ недоступен, бот делает простую раскладку без нейросети.
 - Рупии автоматически приводятся к индийскому формату: ₹312075 → ₹3,12,075.
 - Доступ: только `OWNER_ID`, остальным «Это закрытый бот.»
-- Ссылки: только менеджер `smmtg-mng` и Academy `smmtg-acen`.
+- Ссылки на кнопках: менеджер `smmtg-mng`, старт работы `smmtg-p2p`, Academy EN `smmtg-acen` и HI `smmtg-achi`.
+  Подписи — короткие CAPS, как в канале (WRITE OUR MANAGER, START WORKING, ENGLISH COURSE…).
 - Премиум-эмодзи: `PREMIUM_EMOJI="off"`. Включать после покупки username на Fragment
   (id эмодзи из канала лежат в `premium_emoji.json`).
+
+## Контент-план
+Кнопка «📅 Контент-план» (или /plan) показывает даты из Google Sheets «Content Plan / Ganesha Pay (TG / FB / X)»
+на 2 недели вперёд. Нажимаешь дату или пишешь её сообщением (`29.11`), и бот:
+1. берёт TEXT и визуал из LINK TO VISUAL (файл Google Drive или картинка в ячейке);
+2. оформляет текст: хештег и ссылки из текста сохраняются, ссылка `g.ganeshapay.io/...` становится кнопкой,
+   а подпись кнопки (CAPS, как в канале) придумывает модель;
+3. показывает превью с картинкой. Текст до 1024 символов идёт подписью к фото. Длиннее — картинка
+   стоит крупным превью над текстом (`/img/<id>` воркера), видео — отдельным сообщением;
+4. после публикации ставит STATUS = Posted в таблице (`PLAN_STATUS="off"` в `wrangler.toml` отключает).
+
+Доступ к таблице даёт Google Apps Script `apps_script/Code.gs`: он работает от имени владельца таблицы
+и отвечает только на запросы с ключом. Ключей Google в Cloudflare нет.
+
+Настройка (один раз):
+1. Таблица → Расширения → Apps Script → вставить `apps_script/Code.gs` → сохранить.
+2. ⚙️ Настройки проекта → Свойства скрипта → добавить `BOT_KEY` = длинный случайный пароль.
+3. Выбрать функцию `testList` → ▶ Выполнить → разрешить доступ → в журнале появится список постов.
+4. Начать развёртывание → Новое развёртывание → тип «Веб-приложение»; Запуск от имени: «Я»;
+   У кого есть доступ: «Все» → Развернуть → скопировать URL веб-приложения.
+5. Cloudflare → Workers → m-redactor-bot → Settings → Variables and Secrets → два Secret:
+   `PLAN_URL` = URL веб-приложения, `PLAN_KEY` = тот же пароль, что в `BOT_KEY`.
+6. Открыть /setup воркера ещё раз, чтобы в меню бота появилась команда /plan.
+
+После правок `Code.gs`: Развертывания → Управление → ✏️ → Версия: «Новая версия» (URL не меняется).
 
 ## Кнопки превью
 📤 Опубликовать · 🔁 Другой вариант · ✏️ Поправить (или reply на превью; правку можно писать по-русски) ·
@@ -32,7 +58,7 @@ npm install
 npx wrangler login
 npx wrangler deploy
 ```
-Секрет `BOT_TOKEN` задаётся в Cloudflare Dashboard → Workers → m-redactor-bot → Settings → Variables and Secrets
+Секреты `BOT_TOKEN`, `PLAN_URL`, `PLAN_KEY` задаются в Cloudflare Dashboard → Workers → m-redactor-bot → Settings → Variables and Secrets
 (тип **Secret**). В чат его не присылать.
 Затем открыть https://m-redactor-bot.m-redactor-bot.workers.dev/setup: ставит webhook с секретом и команды бота.
 
@@ -43,6 +69,8 @@ npx wrangler deploy
 npx wrangler deploy --dry-run --outdir dist
 node test/sim.mjs $PWD/dist/index.js           # моки Telegram и Workers AI
 AI_FAIL=1 node test/sim.mjs $PWD/dist/index.js # ИИ недоступен -> раскладка без нейросети
+node test/plan_sim.mjs $PWD/dist/index.js       # контент-план: даты, пост с картинкой, публикация, статус
+node test/plan_sim.mjs $PWD/dist/index.js long  # длинный текст -> картинка крупным превью
 ```
 
 ## Настройка промпта на живой модели
