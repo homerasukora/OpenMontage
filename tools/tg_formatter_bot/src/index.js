@@ -119,10 +119,11 @@ async function layout(env, d, instruction, variant) {
 // ---------- content plan (Google Apps Script web app) ----------
 async function planCall(env, body) {
   if (!env.PLAN_URL || !env.PLAN_KEY) throw new Error("Контент-план не подключён: добавь секреты PLAN_URL и PLAN_KEY в Cloudflare.");
-  const r = await fetch(env.PLAN_URL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, key: env.PLAN_KEY }), redirect: "follow" });
+  const r = await fetch(env.PLAN_URL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, key: String(env.PLAN_KEY).trim() }), redirect: "follow" });
   const t = await r.text();
   let j;
   try { j = JSON.parse(t); } catch { throw new Error(`Apps Script ответил не JSON (HTTP ${r.status}). Проверь доступ веб-приложения: «Все» (Anyone).`); }
+  if (j.error === "no BOT_KEY") throw new Error("Apps Script: в свойствах скрипта нет BOT_KEY (Налаштування проєкту → Властивості скрипта).");
   if (j.error) throw new Error(j.error === "forbidden" ? "Apps Script: ключ не совпадает (PLAN_KEY в Cloudflare ≠ BOT_KEY в скрипте)." : `Apps Script: ${j.error}`);
   return j;
 }

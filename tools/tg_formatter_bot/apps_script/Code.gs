@@ -13,8 +13,9 @@ const MAX_FILE_BYTES = 15 * 1024 * 1024;   // larger visuals are not sent to the
 function doPost(e) {
   let req = {};
   try { req = JSON.parse(e.postData.contents); } catch (err) { return out({ error: "bad json" }); }
-  const key = PropertiesService.getScriptProperties().getProperty("BOT_KEY");
-  if (!key || req.key !== key) return out({ error: "forbidden" });
+  const key = String(PropertiesService.getScriptProperties().getProperty("BOT_KEY") || "").trim();
+  if (!key) return out({ error: "no BOT_KEY" });
+  if (String(req.key || "").trim() !== key) return out({ error: "forbidden" });
   try {
     if (req.action === "list") return out(listPosts(Number(req.back || 1), Number(req.ahead || 14)));
     if (req.action === "post") return out(getPost(String(req.date || "")));
