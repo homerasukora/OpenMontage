@@ -6,6 +6,7 @@
 // Secrets (Cloudflare dashboard → Worker → Settings → Variables and Secrets): BOT_TOKEN, PLAN_URL, PLAN_KEY.
 // Vars (wrangler.toml): OWNER_ID, CHANNEL_ID, MODEL, PREMIUM_EMOJI, PLAN_STATUS. Bindings: DRAFTS (KV), AI (Workers AI).
 import { Buffer } from "node:buffer";
+import { DurableObject } from "cloudflare:workers";
 import { SYSTEM, LINKS, BUTTON_LABELS } from "./prompt.js";
 import { renderPost, parseLayout, checkLayout, fallbackLayout, prepareDraft } from "./render.js";
 import PREMIUM from "../premium_emoji.json";
@@ -194,39 +195,87 @@ function withPremium(env, html) {
     return out.replace(/\u0000([^\u0000]+)\u0000/g, (_, ch) => `<tg-emoji emoji-id="${PREMIUM[ch][0]}">${ch}</tg-emoji>`);
   }).join("");
 }
-// URL buttons under the post (style = Telegram button colour)
-const urlRows = (buttons) => (buttons || []).map((b) => [{ text: b.text, url: b.url, ...(b.style ? { style: b.style } : {}) }]);
+// ---------- buttons under the post ----------
+// d.buttons: link buttons [{text, url, style}]; d.reactions: reaction buttons [{emoji, ceid, style}] (one row, counters).
 const STYLES = [undefined, "success", "primary", "danger"];
-const STYLE_NAME = { undefined: "⚪ обычный", success: "🟢 зелёный", primary: "🔵 синий", danger: "🔴 красный" };
-const LINK_CHOICES = [["manager", "💬 Менеджер (smmtg-mng)"], ["start", "🚀 Старт работы (smmtg-p2p)"], ["academy", "🎓 Курс EN (smmtg-acen)"], ["academy_hi", "🎓 Курс HI (smmtg-achi)"]];
-const cb = (text, data) => ({ text, callback_data: data });
-function controls(d) {
-  const id = d.id, btns = d.buttons || [], kb = d.kb || "main";
-  const rows = urlRows(btns);
-  if (kb === "btns") {
-    btns.forEach((b, i) => {
-      const n = btns.length > 1 ? ` ${i + 1}` : "";
-      rows.push([cb(`✏️ Текст${n}`, `bt:${id}:${i}`), cb(`🔗 Ссылка${n}`, `bl:${id}:${i}`)]);
-      rows.push([cb(`🎨${n}: ${STYLE_NAME[b.style]}`, `bc:${id}:${i}`), cb(`🗑 Удалить${n}`, `bd:${id}:${i}`)]);
-    });
-    if (btns.length < 3) rows.push([cb("➕ Добавить кнопку", `ba:${id}`)]);
-    rows.push([cb("⬅️ Готово", `bk:${id}`)]);
+const DOT = { undefined: "⚪", success: "🟢", primary: "🔵", danger: "🔴" };
+const STYLE_NAME = { undefined: "обычный", success: "зелёный", primary: "синий", danger: "красный" };
+const LINK_CHOICES = [["manager", "💬 Менеджер"], ["start", "🚀 Старт работы"], ["academy", "🎓 Курс EN"], ["academy_hi", "🎓 Курс HI"]];
+const MAX_REACTIONS = 6;
+const cb = (text, data, style) => ({ text, callback_data: data, ...(style ? { style } : {}) });
+const styled = (o, style) => (style ? { ...o, style } : o);
+
+// reaction button: emoji + counter; a premium emoji goes into icon_custom_emoji_id (needs a Fragment username)
+function reactionButton(env, r, count, data) {
+  const premium = env.PREMIUM_EMOJI === "on" && r.ceid;
+  const text = premium ? (count ? String(count) : "\u2060") : count ? `${r.emoji} ${count}` : r.emoji;
+  return styled({ text, callback_data: data, ...(premium ? { icon_custom_emoji_id: r.ceid } : {}) }, r.style);
+}
+// the post's own buttons; in the channel reactions are live (r:i), in the preview they only explain themselves
+function postRows(env, d, { channel = false, counts = [] } = {}) {
+  const rows = (d.buttons || []).map((b) => [styled({ text: b.text, url: b.url }, b.style)]);
+  const rx = d.reactions || [];
+  if (rx.length) rows.push(rx.map((r, i) => reactionButton(env, r, counts[i] || 0, channel ? `r:${i}` : `rp:${d.id}`)));
+  return rows;
+}
+
+function controls(env, d) {
+  const id = d.id, btns = d.buttons || [], rx = d.reactions || [], kb = d.kb || "main";
+  if (kb === "btns") {   // editor: every post button is shown as itself; tap one to set it up
+    const rows = btns.map((b, i) => [cb(`${b.text}  ›`, `be:${id}:u:${i}`, b.style)]);
+    if (rx.length) rows.push(rx.map((r, i) => cb(r.emoji, `be:${id}:r:${i}`, r.style)));
+    rows.push([cb("➕ Ссылка", `ba:${id}:u`), cb("➕ Реакция", `ba:${id}:r`)]);
+    rows.push([cb("✅ Готово", `bk:${id}`)]);
     return rows;
   }
-  if (kb.startsWith("link:")) {
-    const i = kb.slice(5);
-    for (const [k, label] of LINK_CHOICES) rows.push([cb(label, `bs:${id}:${i}:${k}`)]);
-    rows.push([cb("✍️ Своя ссылка", `bu:${id}:${i}`), cb("⬅️ Назад", `bm:${id}`)]);
-    return rows;
+  const m = kb.match(/^(u|r|l):(\d+)$/);
+  if (m) {
+    const i = Number(m[2]);
+    if (m[1] === "u" && btns[i]) return [
+      [styled({ text: btns[i].text, url: btns[i].url }, btns[i].style)],
+      [cb("✏️ Текст", `bt:${id}:${i}`), cb("🔗 Ссылка", `bl:${id}:${i}`)],
+      [cb(`${DOT[btns[i].style]} Цвет`, `bc:${id}:u:${i}`), cb("🗑 Удалить", `bd:${id}:u:${i}`)],
+      [cb("⬅️ Назад", `bm:${id}`)],
+    ];
+    if (m[1] === "l" && btns[i]) return [
+      ...LINK_CHOICES.map(([k, label]) => [cb(`${btns[i].url === LINKS[k] ? "✓ " : ""}${label}`, `bs:${id}:${i}:${k}`)]),
+      [cb("✍️ Своя ссылка", `bu:${id}:${i}`)],
+      [cb("⬅️ Назад", `be:${id}:u:${i}`)],
+    ];
+    if (m[1] === "r" && rx[i]) return [
+      [reactionButton(env, rx[i], 0, `rp:${id}`)],
+      [cb("😀 Эмодзи", `re:${id}:${i}`), cb(`${DOT[rx[i].style]} Цвет`, `bc:${id}:r:${i}`)],
+      [cb("🗑 Удалить", `bd:${id}:r:${i}`), cb("⬅️ Назад", `bm:${id}`)],
+    ];
   }
   return [
-    ...rows,
+    ...postRows(env, d),
     [cb("📤 Опубликовать", `pub:${id}`), cb("🔁 Другой вариант", `redo:${id}`)],
     [cb("✏️ Поправить текст", `edit:${id}`), cb(d.media ? "🖼 Заменить визуал" : "🖼 Добавить визуал", `vis:${id}`)],
     [cb("🔘 Кнопки", `bm:${id}`)],
   ];
 }
-const setKb = (env, chatId, d) => tg(env, "editMessageReplyMarkup", { chat_id: chatId, message_id: d.previewId, reply_markup: { inline_keyboard: controls(d) } });
+const setKb = (env, chatId, d) => tg(env, "editMessageReplyMarkup", { chat_id: chatId, message_id: d.previewId, reply_markup: { inline_keyboard: controls(env, d) } });
+
+// emoji from a message: premium (custom_emoji entities) and normal ones, in order
+function emojisOf(msg) {
+  const text = msg.text || msg.caption || "";
+  const ents = (msg.entities || msg.caption_entities || []).filter((e) => e.type === "custom_emoji");
+  const out = [];
+  let pos = 0;
+  const plain = (chunk) => {
+    for (const { segment } of new Intl.Segmenter("en", { granularity: "grapheme" }).segment(chunk)) {
+      if (/\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(segment)) out.push({ emoji: segment });
+    }
+  };
+  for (const e of ents.sort((a, b) => a.offset - b.offset)) {
+    plain(text.slice(pos, e.offset));
+    out.push({ emoji: text.slice(e.offset, e.offset + e.length), ceid: e.custom_emoji_id });
+    pos = e.offset + e.length;
+  }
+  plain(text.slice(pos));
+  return out;
+}
 
 // pending input: what the next message from the owner means
 const setPending = (env, chatId, obj) => env.DRAFTS.put(`pending:${chatId}`, JSON.stringify(obj), { expirationTtl: 3600 });
@@ -303,7 +352,7 @@ async function sendPost(env, chatId, d, html, markup) {
 
 async function sendPreview(env, chatId, d) {
   const html = withPremium(env, d.html);
-  const markup = { inline_keyboard: controls(d) };
+  const markup = { inline_keyboard: controls(env, d) };
   let r = await sendPost(env, chatId, d, html, markup);
   if (!r.ok) {   // show the HTML raw so nothing is lost, keep the buttons
     const t = await tg(env, "sendMessage", {
@@ -332,7 +381,7 @@ async function runFormat(env, chatId, d, instruction, variant = false) {
     const out = await layout(env, d, instruction, variant);
     const keep = d.buttonsEdited ? d.buttons : null;
     Object.assign(d, out, { kb: "main" });
-    if (keep) d.buttons = keep;   // buttons edited by hand stay as they are
+    if (keep) d.buttons = keep;   // buttons edited by hand stay as they are (reactions are never touched by the model)
     await sendPreview(env, chatId, d);
   } catch (e) {
     console.log("format error", e.stack || e);
@@ -382,7 +431,7 @@ async function onMessage(env, msg) {
     else if (pending.kind === "btext" && text && !hasMedia) {
       await clear();
       const b = d.buttons?.[pending.i];
-      if (b) { b.text = text.trim().slice(0, 64); d.buttonsEdited = true; await setKb(env, chatId, d); await putDraft(env, d); }
+      if (b) { b.text = text.trim().slice(0, 64); d.buttonsEdited = true; d.kb = `u:${pending.i}`; await setKb(env, chatId, d); await putDraft(env, d); }
       return tg(env, "sendMessage", { chat_id: chatId, text: `✅ Текст кнопки: ${text.trim().slice(0, 64)}` });
     } else if (pending.kind === "burl" && text && !hasMedia) {
       let u = text.trim();
@@ -391,11 +440,22 @@ async function onMessage(env, msg) {
       await clear();
       const b = d.buttons?.[pending.i];
       if (!b) return;
-      const old = b.url; b.url = u; d.buttonsEdited = true; d.kb = "btns";
+      const old = b.url; b.url = u; d.buttonsEdited = true; d.kb = `u:${pending.i}`;
       const r = await setKb(env, chatId, d);
       if (!r.ok) { b.url = old; return tg(env, "sendMessage", { chat_id: chatId, text: `Telegram не принял ссылку: ${r.description}` }); }
       await putDraft(env, d);
       return tg(env, "sendMessage", { chat_id: chatId, text: `✅ Ссылка кнопки: ${u}` });
+    } else if (pending.kind === "remoji" && text && !hasMedia) {
+      const found = emojisOf(msg);
+      if (!found.length) return tg(env, "sendMessage", { chat_id: chatId, text: "Не нашёл эмодзи. Пришли одно или несколько, например ❤️🔥👍 (можно премиум)." });
+      await clear();
+      d.reactions = d.reactions || [];
+      if (pending.i >= 0 && d.reactions[pending.i]) Object.assign(d.reactions[pending.i], { emoji: found[0].emoji, ceid: found[0].ceid });
+      else for (const e of found) if (d.reactions.length < MAX_REACTIONS) d.reactions.push(e);
+      d.buttonsEdited = true; d.kb = "btns";
+      const r = await setKb(env, chatId, d); await putDraft(env, d);
+      const prem = found.some((e) => e.ceid) && env.PREMIUM_EMOJI !== "on" ? "\nПремиум-эмодзи сохранил: на кнопке он появится после покупки username на Fragment, пока будет обычный." : "";
+      return tg(env, "sendMessage", { chat_id: chatId, text: r.ok ? `✅ Реакции: ${d.reactions.map((x) => x.emoji).join(" ")}${prem}` : `Telegram: ${r.description}` });
     } else if (pending.kind === "edit" && text && !hasMedia) { await clear(); return runFormat(env, chatId, d, text); }
   }
   if (hasMedia && !text) return tg(env, "sendMessage", { chat_id: chatId, text: "Получил файл без текста. Чтобы прикрепить его к посту, нажми «🖼 Визуал» под превью или ответь этим фото на превью. Для нового поста пришли фото с подписью." });
@@ -420,48 +480,46 @@ async function onCallback(env, cq) {
   const i = Number(arg), b = d.buttons?.[i];
 
   // ----- button editor (only the keyboard changes) -----
-  if (action === "bm" || action === "bk") {
-    d.kb = action === "bm" ? "btns" : "main";
-    await setKb(env, chatId, d); await putDraft(env, d);
-    return ack(action === "bm" && !d.buttons?.length ? "Кнопок нет — нажми «➕ Добавить кнопку»" : undefined);
+  const kind = arg, j = Number(arg2);                       // be/bc/bd: kind = u (link) | r (reaction)
+  const list = kind === "r" ? (d.reactions = d.reactions || []) : (d.buttons = d.buttons || []);
+  const save = async (text) => { const r = await setKb(env, chatId, d); await putDraft(env, d); return ack(r.ok ? text : `Telegram: ${r.description}`.slice(0, 190)); };
+  if (action === "bm") { d.kb = "btns"; return save(); }
+  if (action === "bk") { d.kb = "main"; return save(); }
+  if (action === "be" && list[j]) { d.kb = `${kind}:${j}`; return save(); }
+  if (action === "ba" && kind === "u") {
+    if (d.buttons.length >= 3) return ack("Не больше 3 кнопок-ссылок");
+    d.buttons.push({ text: BUTTON_LABELS.start, url: LINKS.start }); d.buttonsEdited = true;
+    d.kb = `u:${d.buttons.length - 1}`;
+    return save("Добавил START WORKING — поменяй текст и ссылку");
   }
-  if (action === "ba") {
-    d.buttons = [...(d.buttons || []), { text: BUTTON_LABELS.start, url: LINKS.start }].slice(0, 3);
-    d.buttonsEdited = true; d.kb = "btns";
-    await setKb(env, chatId, d); await putDraft(env, d);
-    return ack("Добавил кнопку START WORKING — поменяй текст и ссылку");
+  if (action === "ba" && kind === "r") {
+    if ((d.reactions || []).length >= MAX_REACTIONS) return ack(`Не больше ${MAX_REACTIONS} реакций`);
+    await setPending(env, chatId, { id: d.id, kind: "remoji", i: -1 }); await putDraft(env, d); await ack();
+    return tg(env, "sendMessage", { chat_id: chatId, text: "Пришли эмодзи для реакций — одно или сразу несколько, например ❤️🔥👍. Можно премиум-эмодзи." });
   }
-  if (action === "bd" && b) {
-    d.buttons.splice(i, 1); d.buttonsEdited = true;
-    await setKb(env, chatId, d); await putDraft(env, d);
-    return ack("Кнопка удалена");
+  if (action === "re" && d.reactions?.[i]) {
+    await setPending(env, chatId, { id: d.id, kind: "remoji", i }); await putDraft(env, d); await ack();
+    return tg(env, "sendMessage", { chat_id: chatId, text: `Пришли новый эмодзи вместо ${d.reactions[i].emoji}.` });
   }
-  if (action === "bc" && b) {
-    b.style = STYLES[(STYLES.indexOf(b.style) + 1) % STYLES.length];
-    if (!b.style) delete b.style;
+  if (action === "bc" && list[j]) {
+    const it = list[j];
+    it.style = STYLES[(STYLES.indexOf(it.style) + 1) % STYLES.length];
+    if (!it.style) delete it.style;
     d.buttonsEdited = true;
-    const r = await setKb(env, chatId, d); await putDraft(env, d);
-    return ack(r.ok ? `Цвет: ${STYLE_NAME[b.style]}` : `Telegram: ${r.description}`.slice(0, 190));
+    return save(`Цвет: ${STYLE_NAME[it.style]}`);
   }
+  if (action === "bd" && list[j]) { list.splice(j, 1); d.buttonsEdited = true; d.kb = "btns"; return save("Удалено"); }
   if (action === "bt" && b) {
     await setPending(env, chatId, { id: d.id, kind: "btext", i }); await putDraft(env, d); await ack();
-    return tg(env, "sendMessage", { chat_id: chatId, text: `Пришли новый текст для кнопки «${b.text}» одним сообщением.\nВ канале кнопки обычно капсом: WRITE OUR MANAGER, START WORKING.` });
+    return tg(env, "sendMessage", { chat_id: chatId, text: `Пришли новый текст для кнопки «${b.text}».\nВ канале кнопки обычно капсом: WRITE OUR MANAGER, START WORKING.` });
   }
-  if (action === "bl" && b) {
-    d.kb = `link:${i}`;
-    await setKb(env, chatId, d); await putDraft(env, d);
-    return ack(`Сейчас: ${b.url}`.slice(0, 190));
-  }
-  if (action === "bs" && b && LINKS[arg2]) {
-    b.url = LINKS[arg2]; d.buttonsEdited = true; d.kb = "btns";
-    await setKb(env, chatId, d); await putDraft(env, d);
-    return ack(`Ссылка: ${b.url}`);
-  }
+  if (action === "bl" && b) { d.kb = `l:${i}`; return save(); }
+  if (action === "bs" && b && LINKS[arg2]) { b.url = LINKS[arg2]; d.buttonsEdited = true; d.kb = `u:${i}`; return save("Ссылка изменена"); }
   if (action === "bu" && b) {
-    d.kb = "btns"; await setKb(env, chatId, d);
     await setPending(env, chatId, { id: d.id, kind: "burl", i }); await putDraft(env, d); await ack();
     return tg(env, "sendMessage", { chat_id: chatId, text: `Пришли ссылку для кнопки «${b.text}» (https://… или t.me/…).` });
   }
+  if (action === "rp") return ack("Реакции заработают в канале после публикации: подписчики нажимают — счётчик растёт.");
 
   // ----- visual -----
   if (action === "vis") {
@@ -491,9 +549,14 @@ async function onCallback(env, cq) {
   }
   if (action === "pub") {
     const html = withPremium(env, d.html);
-    const r = await sendPost(env, env.CHANNEL_ID, d, html, d.buttons?.length ? { inline_keyboard: urlRows(d.buttons) } : undefined);
+    const rows = postRows(env, d, { channel: true });
+    const r = await sendPost(env, env.CHANNEL_ID, d, html, rows.length ? { inline_keyboard: rows } : undefined);
     if (!r.ok) return tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: `Не опубликовано: ${r.description}`.slice(0, 190), show_alert: true });
     d.published = { chat: env.CHANNEL_ID, id: r.mainId, ids: r.ids }; await putDraft(env, d);
+    if (d.reactions?.length) {   // counters live in a Durable Object per channel message
+      const stub = env.REACTIONS.get(env.REACTIONS.idFromName(`${env.CHANNEL_ID}:${r.mainId}`));
+      await stub.init({ chat: String(env.CHANNEL_ID), msg: r.mainId, buttons: d.buttons || [], reactions: d.reactions });
+    }
     let planLine = "";
     if (d.plan && env.PLAN_STATUS !== "off") {
       try { await planCall(env, { action: "status", date: d.plan.date, value: "Posted" }); planLine = `\nСтатус ${d.plan.date} в контент-плане: Posted.`; }
@@ -519,6 +582,14 @@ async function onCallback(env, cq) {
   return tg(env, "answerCallbackQuery", { callback_query_id: cq.id });
 }
 
+async function onReaction(env, cq) {
+  const chat = String(cq.message.chat.id);
+  if (chat !== String(env.CHANNEL_ID)) return tg(env, "answerCallbackQuery", { callback_query_id: cq.id });
+  const stub = env.REACTIONS.get(env.REACTIONS.idFromName(`${chat}:${cq.message.message_id}`));
+  const res = await stub.vote(String(cq.from.id), Number(cq.data.slice(2)));
+  return tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: res.ok ? (res.state === "removed" ? `${res.emoji} убрано` : `${res.emoji} +1`) : "" });
+}
+
 async function onUpdate(env, u) {
   const owner = String(env.OWNER_ID);
   if (u.my_chat_member) {   // bot added to / removed from a channel -> tell the owner the chat id
@@ -529,6 +600,9 @@ async function onUpdate(env, u) {
   if (u.message && u.message.chat.type === "private") {
     if (String(u.message.from.id) !== owner) return tg(env, "sendMessage", { chat_id: u.message.chat.id, text: "Это закрытый бот." });
     return onMessage(env, u.message);
+  }
+  if (u.callback_query && /^r:\d+$/.test(u.callback_query.data || "") && u.callback_query.message) {
+    return onReaction(env, u.callback_query);
   }
   if (u.callback_query) {
     if (String(u.callback_query.from.id) !== owner) return tg(env, "answerCallbackQuery", { callback_query_id: u.callback_query.id, text: "Нет доступа" });
@@ -578,3 +652,45 @@ export default {
     return new Response("m_redactor_bot is running");
   },
 };
+
+// One Durable Object per published channel message with reactions: votes (one per user) and a batched keyboard update.
+export class Reactions extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    this.sql = ctx.storage.sql;
+    this.sql.exec("CREATE TABLE IF NOT EXISTS votes (uid TEXT PRIMARY KEY, idx INTEGER NOT NULL)");
+    this.sql.exec("CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)");
+  }
+  meta() {
+    const row = this.sql.exec("SELECT v FROM meta WHERE k = 'post'").toArray()[0];
+    return row ? JSON.parse(row.v) : null;
+  }
+  async init(post) {
+    this.sql.exec("INSERT OR REPLACE INTO meta (k, v) VALUES ('post', ?)", JSON.stringify(post));
+    return true;
+  }
+  counts(n) {
+    const c = new Array(n).fill(0);
+    for (const r of this.sql.exec("SELECT idx, COUNT(*) AS n FROM votes GROUP BY idx").toArray()) if (r.idx < n) c[r.idx] = r.n;
+    return c;
+  }
+  // tap the same reaction again = remove it; tap another = move the vote
+  async vote(uid, idx) {
+    const post = this.meta();
+    if (!post || !post.reactions[idx]) return { ok: false };
+    const cur = this.sql.exec("SELECT idx FROM votes WHERE uid = ?", uid).toArray()[0];
+    let state;
+    if (cur && cur.idx === idx) { this.sql.exec("DELETE FROM votes WHERE uid = ?", uid); state = "removed"; }
+    else { this.sql.exec("INSERT OR REPLACE INTO votes (uid, idx) VALUES (?, ?)", uid, idx); state = cur ? "moved" : "added"; }
+    if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(Date.now() + 1000);   // one edit per second at most
+    return { ok: true, state, emoji: post.reactions[idx].emoji };
+  }
+  async alarm() {
+    const post = this.meta();
+    if (!post) return;
+    const d = { buttons: post.buttons, reactions: post.reactions };
+    const rows = postRows(this.env, d, { channel: true, counts: this.counts(post.reactions.length) });
+    const r = await tg(this.env, "editMessageReplyMarkup", { chat_id: post.chat, message_id: post.msg, reply_markup: { inline_keyboard: rows } });
+    if (!r.ok && r.parameters?.retry_after) await this.ctx.storage.setAlarm(Date.now() + r.parameters.retry_after * 1000);
+  }
+}

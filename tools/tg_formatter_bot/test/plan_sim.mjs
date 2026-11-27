@@ -1,6 +1,7 @@
 // Offline check of the content-plan flow with mocked Telegram, Workers AI and Apps Script.
 // npx wrangler deploy --dry-run --outdir dist && node test/plan_sim.mjs $PWD/dist/index.js [long]
-const mod = await import(process.argv[2]);
+import { loadWorker, doNamespace } from "./load.mjs";
+const mod = await loadWorker(process.argv[2]);
 const LONG = process.argv[3] === "long";
 const kv = new Map();
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";

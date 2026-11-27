@@ -1,6 +1,7 @@
 // Offline check of the worker with mocked Telegram + Workers AI.
 // npx wrangler deploy --dry-run --outdir dist && node test/sim.mjs $PWD/dist/index.js
-const mod = await import(process.argv[2]);
+import { loadWorker, doNamespace } from "./load.mjs";
+const mod = await loadWorker(process.argv[2]);
 const kv = new Map();
 const LAYOUT = { headline: "Free P2P course", headline_emoji: "👨‍🎓", blocks: [{ type: "text", text: "Not sure what ***PAYIN*** means?" }, { type: "quote", items: [{ emoji: "⏳", text: "Around **20** minutes a day" }] }, { type: "text", text: "Learn it free in the [Academy](academy). Join the free course today." }], cta: "", hashtag: "knowledge", buttons: ["academy"] };
 const DRAFT = "Free P2P course\nNot sure what PAYIN means?\nAround 20 minutes a day\nLearn it free in the Academy. Join the free course today.";

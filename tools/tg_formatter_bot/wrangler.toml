@@ -20,3 +20,12 @@ id = "d4f4766ead4d4a8eb6c90a955a9a7aad"
 
 [observability]
 enabled = true
+
+# reaction counters under channel posts (one Durable Object per message, SQLite storage)
+[[durable_objects.bindings]]
+name = "REACTIONS"
+class_name = "Reactions"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Reactions"]
