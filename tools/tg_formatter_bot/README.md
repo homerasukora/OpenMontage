@@ -1,36 +1,51 @@
 # m_redactor_bot — форматирование постов Ganesha Pay
 
-Telegram-бот на Cloudflare Workers. Владелец присылает черновик → Claude оформляет его в стиле канала
-(жирный заголовок с эмодзи, курсив, blockquote, хештег, кнопки) → превью с кнопками →
-публикация **только** по кнопке «📤 Опубликовать» и **только** в канал из `CHANNEL_ID`.
+Telegram-бот на Cloudflare Workers. Владелец присылает черновик на английском, бот оформляет его в стиле канала
+(жирный заголовок с эмодзи, жирный курсив для имён и бренда, цитата с пунктами, CTA с 👇, хештег, кнопки)
+и показывает превью. Публикация **только** по кнопке «📤 Опубликовать» и **только** в канал из `CHANNEL_ID`.
 
+## Как устроено
+- Нейросеть: **Cloudflare Workers AI**, без внешних ключей. Основная модель `@cf/qwen/qwen3.8-27b`,
+  при ошибке подключается `@cf/openai/gpt-oss-120b`. Бесплатно 10 000 neurons в день,
+  один пост стоит около 80–200 neurons, этого хватает на 50+ постов в день.
+- Модель возвращает только **структуру** поста в JSON (заголовок, абзацы, цитата, CTA, хештег, кнопки).
+  HTML для Telegram собирает код (`src/render.js`), поэтому разметка всегда валидна и в стиле канала.
+- Код сверяет результат с черновиком: числа (лишние или пропавшие), пропущенные и повторённые предложения,
+  новые слова. Если что-то не так, модель получает одну попытку исправить. Что осталось — бот пишет в заметке 📝.
+- Отдельно отмечаются рискованные формулировки: guaranteed, passive income, no risk, 100% safe,
+  «без блокировок», easy money, обещания дохода.
+- Если ИИ недоступен, бот делает простую раскладку без нейросети.
+- Рупии автоматически приводятся к индийскому формату: ₹312075 → ₹3,12,075.
 - Доступ: только `OWNER_ID`, остальным «Это закрытый бот.»
-- Канал: тестовый приватный канал (`CHANNEL_ID` в `wrangler.toml`), бот — админ с правом публикации.
-- Стиль: few-shot из постов t.me/ganeshapay (`examples.json`), правила в `src/prompt.js`.
-  Факты, цифры и обещания модель не меняет; риски пишет в заметке 📝 по-русски.
-- Хештеги: #knowledge #cases #terms #meme #ask (переключаются кнопками).
-- Ссылки на кнопках: только менеджер `smmtg-mng` и Academy `smmtg-acen`.
-- Премиум-эмодзи: `PREMIUM_EMOJI="off"`. Включать после покупки username на Fragment и привязки к боту
-  (id эмодзи из канала — в `premium_emoji.json`).
+- Ссылки: только менеджер `smmtg-mng` и Academy `smmtg-acen`.
+- Премиум-эмодзи: `PREMIUM_EMOJI="off"`. Включать после покупки username на Fragment
+  (id эмодзи из канала лежат в `premium_emoji.json`).
 
 ## Кнопки превью
-📤 Опубликовать · 🔁 Другой вариант · ✏️ Поправить (или reply на превью с правкой) ·
-🔘 Убрать/вернуть кнопки · хештеги. После публикации: «Открыть пост», «🗑 Удалить из канала».
+📤 Опубликовать · 🔁 Другой вариант · ✏️ Поправить (или reply на превью; правку можно писать по-русски) ·
+🔘 Убрать/вернуть кнопки · хештеги #knowledge #cases #terms #meme #ask.
+После публикации: «Открыть пост», «🗑 Удалить из канала».
 
 ## Деплой
 ```bash
 npm install
-npx wrangler login                       # или CLOUDFLARE_API_TOKEN в окружении
-npx wrangler kv namespace create DRAFTS  # id → wrangler.toml
+npx wrangler login
 npx wrangler deploy
 ```
-Секреты задаются в Cloudflare Dashboard → Workers → m-redactor-bot → Settings → Variables and Secrets
-(тип **Secret**): `BOT_TOKEN`, `ANTHROPIC_API_KEY`. В чат их не присылать.
+Секрет `BOT_TOKEN` задаётся в Cloudflare Dashboard → Workers → m-redactor-bot → Settings → Variables and Secrets
+(тип **Secret**). В чат его не присылать.
+Затем открыть https://m-redactor-bot.m-redactor-bot.workers.dev/setup: ставит webhook с секретом и команды бота.
 
-Потом открыть `https://m-redactor-bot.m-redactor-bot.workers.dev/setup` — ставит webhook с секретом и команды.
+Сменить модель: `MODEL` в `wrangler.toml`.
 
 ## Проверка без сети
 ```bash
 npx wrangler deploy --dry-run --outdir dist
-node test/sim.mjs $PWD/dist/index.js off   # моки Telegram и Claude: превью, хештег, публикация, дубль, чужой, плохой секрет
+node test/sim.mjs $PWD/dist/index.js           # моки Telegram и Workers AI
+AI_FAIL=1 node test/sim.mjs $PWD/dist/index.js # ИИ недоступен -> раскладка без нейросети
 ```
+
+## Настройка промпта на живой модели
+`POST /debug` работает, только пока задан секрет `TEST_KEY` (заголовок `X-Test-Key`).
+Тело запроса: `{draft, model?, layout?, instruction?, variant?}`. После настройки секрет удалить:
+`npx wrangler secret delete TEST_KEY`.

@@ -1,12 +1,16 @@
-// m_redactor_bot — formats Telegram posts in the Ganesha Pay house style with Claude and publishes them on a button press.
+// m_redactor_bot — lays out Telegram posts in the Ganesha Pay house style and publishes them on a button press.
+// The model (Cloudflare Workers AI, free daily allocation) returns only the post STRUCTURE as JSON;
+// src/render.js builds the Telegram HTML, so markup is always valid. Code checks numbers/wording against the draft.
 // Cloudflare Worker: POST /webhook (Telegram updates), GET /setup (registers the webhook + commands).
-// Secrets (Cloudflare dashboard → Worker → Settings → Variables and Secrets): BOT_TOKEN, ANTHROPIC_API_KEY.
-// Vars (wrangler.toml): OWNER_ID, CHANNEL_ID, MODEL, PREMIUM_EMOJI. KV binding: DRAFTS.
-import Anthropic from "@anthropic-ai/sdk";
-import { SYSTEM, HASHTAGS } from "./prompt.js";
+// Secret (Cloudflare dashboard → Worker → Settings → Variables and Secrets): BOT_TOKEN.
+// Vars (wrangler.toml): OWNER_ID, CHANNEL_ID, MODEL, PREMIUM_EMOJI. Bindings: DRAFTS (KV), AI (Workers AI).
+import { SYSTEM, HASHTAGS, LINKS, BUTTON_LABELS } from "./prompt.js";
+import { renderPost, parseLayout, checkLayout, fallbackLayout } from "./render.js";
 import PREMIUM from "../premium_emoji.json";
 
 const TTL = 60 * 60 * 24 * 14; // drafts live 14 days
+const DEFAULT_MODEL = "@cf/qwen/qwen3.8-27b";
+const BACKUP_MODEL = "@cf/openai/gpt-oss-120b";   // used when the main model errors
 
 // ---------- Telegram helpers ----------
 async function tg(env, method, body) {
@@ -31,44 +35,60 @@ const getDraft = async (env, id) => JSON.parse((await env.DRAFTS.get(`d:${id}`))
 const putDraft = (env, d) => env.DRAFTS.put(`d:${d.id}`, JSON.stringify(d), { expirationTtl: TTL });
 const linkMsg = (env, msgId, draftId) => env.DRAFTS.put(`m:${msgId}`, draftId, { expirationTtl: TTL });
 
-// ---------- Claude ----------
-function parseAnswer(text) {
-  const tag = (name) => {
-    const m = text.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`));
-    return m ? m[1].trim() : null;
-  };
-  let buttons = [];
-  try { buttons = JSON.parse(tag("buttons") || "[]"); } catch { buttons = []; }
-  buttons = (Array.isArray(buttons) ? buttons : []).filter((b) => b && b.text && /^https:\/\//.test(b.url)).slice(0, 2);
-  const hashtag = (tag("hashtag") || "").replace("#", "").trim();
-  return { html: tag("post") || text.trim(), hashtag: HASHTAGS.includes(hashtag) ? hashtag : null, buttons, notes: tag("notes") || "—" };
+// ---------- Workers AI ----------
+function answerText(r) {
+  if (typeof r === "string") return r;
+  if (r?.choices?.[0]?.message?.content) return r.choices[0].message.content;
+  if (typeof r?.response === "string") return r.response;
+  if (r?.response && typeof r.response === "object") return JSON.stringify(r.response);
+  if (Array.isArray(r?.output)) {   // responses-style output
+    return r.output.flatMap((o) => o.content || []).filter((c) => c.type === "output_text").map((c) => c.text).join("");
+  }
+  return "";
+}
+const USAGE = [];   // per-request log of token usage (shown by /debug)
+async function callModel(env, messages, temperature, model = env.MODEL || DEFAULT_MODEL) {
+  const input = { messages, max_tokens: 2500, temperature };
+  if (/gpt-oss|qwen3/.test(model)) input.reasoning_effort = "low";
+  if (/qwen3/.test(model)) input.chat_template_kwargs = { enable_thinking: false };
+  Object.assign(input, env.AI_OPTS || {});
+  const t0 = Date.now();
+  const r = await env.AI.run(model, input);
+  USAGE.push({ model, ms: Date.now() - t0, usage: r?.usage });
+  return answerText(r);
 }
 
-async function format(env, draft, instruction) {
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-  const messages = [{ role: "user", content: `${draft.photo ? "Photo caption draft" : "Draft"}:\n\n${draft.source}` }];
-  for (const turn of draft.turns || []) {
-    messages.push({ role: "assistant", content: turn.answer });
-    messages.push({ role: "user", content: turn.instruction });
+// Lays out the draft: model -> JSON -> checks -> one corrective retry -> best result (or the no-model fallback).
+async function layout(env, d, instruction, variant) {
+  const messages = [{ role: "system", content: SYSTEM }, { role: "user", content: `Draft${d.photo ? " (photo caption, keep it short)" : ""}:\n${d.source}\nJSON:` }];
+  if (d.layout && (instruction || variant)) {
+    messages.push({ role: "assistant", content: JSON.stringify(d.layout) });
+    messages.push({ role: "user", content: instruction
+      ? `Owner's change request (may be in Russian): ${instruction}\nApply it and return the full updated JSON. Keep the draft's facts and numbers.`
+      : "Give a different layout of the same draft: another headline and emoji, different blocks and emphasis. Same words, same facts. Return JSON." });
   }
-  if (instruction) {
-    messages.push({ role: "assistant", content: draft.lastAnswer });
-    messages.push({ role: "user", content: instruction });
+  let best = null, model = env.MODEL || DEFAULT_MODEL;
+  const t0 = Date.now();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt && Date.now() - t0 > 30000) break;   // keep the whole reply well under a minute
+    let text = "";
+    try { text = await callModel(env, messages, variant ? 0.9 : attempt ? 0.4 : 0.2, model); }
+    catch (e) { console.log("AI error", model, e.message); if (model === BACKUP_MODEL) break; model = BACKUP_MODEL; continue; }
+    const p = parseLayout(text);
+    if (!p) { messages.push({ role: "assistant", content: text.slice(0, 3000) }, { role: "user", content: "That was not valid JSON of the required shape. Return only the JSON object." }); continue; }
+    const r = renderPost(p);
+    const c = checkLayout(d.source, p, { caption: !!d.photo, html: r.html });
+    const cand = { p, r, c };
+    if (!best || c.problems.length < best.c.problems.length) best = cand;
+    if (!c.problems.length || instruction) break;   // an edit may change numbers on purpose; just report it
+    messages.push({ role: "assistant", content: JSON.stringify(p) }, { role: "user", content: `Fix these problems and return the full JSON again:\n- ${c.problems.join("\n- ")}` });
   }
-  const response = await client.beta.messages.create({
-    model: env.MODEL || "claude-opus-5-5",
-    max_tokens: 8000,
-    system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
-    messages,
-    output_config: { effort: "low" },   // formatting is a light task; low keeps replies fast
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-  });
-  if (response.stop_reason === "refusal") throw new Error("Модель отказалась форматировать этот текст.");
-  const text = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-  if (instruction) draft.turns = [...(draft.turns || []), { answer: draft.lastAnswer, instruction }];
-  draft.lastAnswer = text;
-  return parseAnswer(text);
+  if (!best) {
+    const p = fallbackLayout(d.source);
+    const r = renderPost(p);
+    return { layout: p, ...r, notes: ["Модель не ответила — сделал простую раскладку без ИИ. Нажми «Другой вариант» позже.", ...checkLayout(d.source, p, { caption: !!d.photo, html: r.html }).notes] };
+  }
+  return { layout: best.p, ...best.r, notes: best.c.notes };
 }
 
 // ---------- post helpers ----------
@@ -113,11 +133,11 @@ async function sendPreview(env, chatId, d) {
   if (!r.ok) {   // broken HTML from the model: show it raw so nothing is lost, keep the buttons
     r = await tg(env, "sendMessage", {
       chat_id: chatId, parse_mode: "HTML", reply_markup: { inline_keyboard: controls(d) },
-      text: `⚠️ Telegram не принял разметку (${esc(r.description)}). Нажми «Другой вариант» или «Поправить».\n\n<code>${esc(d.html).slice(0, 3500)}</code>`,
+      text: `⚠️ Telegram не принял пост (${esc(r.description)}). Нажми «Другой вариант» или «Поправить».\n\n<code>${esc(d.html).slice(0, 3500)}</code>`,
     });
   }
   if (r.ok) { d.previewId = r.result.message_id; await linkMsg(env, r.result.message_id, d.id); }
-  if (d.notes && d.notes !== "—") await tg(env, "sendMessage", { chat_id: chatId, text: `📝 ${d.notes}`, reply_parameters: r.ok ? { message_id: r.result.message_id } : undefined });
+  if (d.notes?.length) await tg(env, "sendMessage", { chat_id: chatId, text: `📝 ${d.notes.join("\n")}`, reply_parameters: r.ok ? { message_id: r.result.message_id } : undefined });
   await putDraft(env, d);
 }
 async function refreshPreview(env, chatId, d) {
@@ -130,20 +150,16 @@ async function refreshPreview(env, chatId, d) {
 }
 
 // ---------- handlers ----------
-async function runFormat(env, chatId, d, instruction) {
+async function runFormat(env, chatId, d, instruction, variant = false) {
   await tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
-  const status = await tg(env, "sendMessage", { chat_id: chatId, text: instruction ? "✏️ Правлю…" : "⏳ Форматирую…" });
+  const status = await tg(env, "sendMessage", { chat_id: chatId, text: instruction ? "✏️ Правлю…" : variant ? "🔁 Делаю другой вариант…" : "⏳ Оформляю…" });
   try {
-    const out = await format(env, d, instruction);
-    Object.assign(d, out, { hashtag: out.hashtag || d.hashtag || "knowledge" });
-    d.html = setHashtag(d.html, d.hashtag);
+    const out = await layout(env, d, instruction, variant);
+    Object.assign(d, out);
     await sendPreview(env, chatId, d);
   } catch (e) {
-    let msg = e.message;
-    if (e instanceof Anthropic.AuthenticationError) msg = "Неверный ключ Claude API (ANTHROPIC_API_KEY).";
-    else if (e instanceof Anthropic.RateLimitError) msg = "Лимит запросов к Claude, попробуй через минуту.";
-    else if (e instanceof Anthropic.APIError) msg = `Ошибка Claude API ${e.status}: ${e.message}`;
-    await tg(env, "sendMessage", { chat_id: chatId, text: `❌ ${msg}` });
+    console.log("format error", e.stack || e);
+    await tg(env, "sendMessage", { chat_id: chatId, text: `❌ Ошибка: ${e.message}` });
   } finally {
     if (status.ok) await tg(env, "deleteMessage", { chat_id: chatId, message_id: status.result.message_id });
   }
@@ -176,7 +192,7 @@ async function onMessage(env, msg) {
   }
   if (!text) return tg(env, "sendMessage", { chat_id: chatId, text: "Пришли текст поста или фото с подписью." });
 
-  const d = { id: newId(), source: text, photo: msg.photo ? msg.photo[msg.photo.length - 1].file_id : null, turns: [] };
+  const d = { id: newId(), source: text, photo: msg.photo ? msg.photo[msg.photo.length - 1].file_id : null };
   return runFormat(env, chatId, d, null);
 }
 
@@ -188,12 +204,12 @@ async function onCallback(env, cq) {
   d.previewId = cq.message.message_id;
 
   if (action === "tag") {
-    d.hashtag = arg; d.html = setHashtag(d.html, arg);
+    d.hashtag = arg; d.html = setHashtag(d.html, arg); if (d.layout) d.layout.hashtag = arg;
     await putDraft(env, d); await refreshPreview(env, chatId, d);
     return tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: `#${arg}` });
   }
   if (action === "btn") {
-    d.buttons = d.buttons?.length ? [] : [{ text: "Message a manager", url: "https://g.ganeshapay.io/smmtg-mng" }, { text: "Free P2P course", url: "https://g.ganeshapay.io/smmtg-acen" }];
+    d.buttons = d.buttons?.length ? [] : ["manager", "academy"].map((k) => ({ text: BUTTON_LABELS[k], url: LINKS[k] }));
     await putDraft(env, d); await refreshPreview(env, chatId, d);
     return tg(env, "answerCallbackQuery", { callback_query_id: cq.id });
   }
@@ -204,7 +220,7 @@ async function onCallback(env, cq) {
   }
   if (action === "redo") {
     await tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: "Делаю другой вариант…" });
-    return runFormat(env, chatId, d, "Make a different variant of this post: another headline and a different arrangement of emphasis, same facts and the same house style.");
+    return runFormat(env, chatId, d, null, true);
   }
   if (action === "pub") {
     const html = withPremium(env, d.html);
@@ -262,8 +278,21 @@ export default {
       // process inline (waitUntil is capped at ~30 s; a Claude call can take longer) and drop Telegram retries
       if (await env.DRAFTS.get(`u:${update.update_id}`)) return new Response("dup");
       await env.DRAFTS.put(`u:${update.update_id}`, "1", { expirationTtl: 3600 });
-      try { await onUpdate(env, update); } catch (e) { console.log("update error", e.stack || e); }
+      // awaited inline and also registered with waitUntil, so the work survives if Telegram stops waiting
+      const job = onUpdate(env, update).catch((e) => console.log("update error", e.stack || e));
+      ctx.waitUntil(job);
+      await job;
       return new Response("ok");
+    }
+    // optional test hook: only when the TEST_KEY secret exists (used for tuning the prompt; remove the secret afterwards)
+    if (request.method === "POST" && url.pathname === "/debug" && env.TEST_KEY && request.headers.get("X-Test-Key") === env.TEST_KEY) {
+      const body = await request.json();
+      const t0 = Date.now();
+      const e2 = { ...env, MODEL: body.model || env.MODEL, AI_OPTS: body.opts || null };
+      USAGE.length = 0;
+      const d = { id: "debug", source: body.draft, photo: null, layout: body.layout || null };
+      const out = await layout(e2, d, body.instruction || null, !!body.variant);
+      return Response.json({ ms: Date.now() - t0, calls: USAGE, ...out });
     }
     return new Response("m_redactor_bot is running");
   },
