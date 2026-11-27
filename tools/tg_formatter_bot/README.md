@@ -27,7 +27,7 @@ npx wrangler deploy
 Секреты задаются в Cloudflare Dashboard → Workers → m-redactor-bot → Settings → Variables and Secrets
 (тип **Secret**): `BOT_TOKEN`, `ANTHROPIC_API_KEY`. В чат их не присылать.
 
-Потом открыть `https://m-redactor-bot.<subdomain>.workers.dev/setup` — ставит webhook с секретом и команды.
+Потом открыть `https://m-redactor-bot.m-redactor-bot.workers.dev/setup` — ставит webhook с секретом и команды.
 
 ## Проверка без сети
 ```bash

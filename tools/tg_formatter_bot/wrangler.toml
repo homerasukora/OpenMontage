@@ -12,7 +12,7 @@ PREMIUM_EMOJI = "off"
 
 [[kv_namespaces]]
 binding = "DRAFTS"
-id = "REPLACE_WITH_KV_ID"
+id = "d4f4766ead4d4a8eb6c90a955a9a7aad"
 
 [observability]
 enabled = true
