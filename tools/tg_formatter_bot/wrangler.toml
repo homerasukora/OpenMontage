@@ -8,7 +8,7 @@ keep_vars = true
 OWNER_ID = "726625635"
 CHANNEL_ID = "-1005659106771"
 MODEL = "@cf/qwen/qwen3.8-27b"
-PREMIUM_EMOJI = "off"
+PREMIUM_EMOJI = "owner"   # off | owner (owner has Premium, posts via «🙋 Опубликую сам») | on (Fragment username)
 PLAN_STATUS = "on"   # after publishing, set STATUS = Posted in the content plan
 
 [ai]
