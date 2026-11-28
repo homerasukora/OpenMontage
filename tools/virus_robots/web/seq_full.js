@@ -52,9 +52,9 @@ export async function buildShots(K) {
     if (cover > 0) { g.fillStyle = bar; g.fillRect(x0 + w1 + w2 * (1 - cover) - 4, y - size * .78, w2 * cover + 10, size * .86); }
     g.restore();
   }
-  function counter(g, val, { y, size = 168, color = C.paper, lead = 0, reveal = 1 } = {}) {
+  function counter(g, val, { y, size = 168, color = C.paper, lead = 0, reveal = 1, leadLen = 0 } = {}) {
     const s = Math.round(val).toLocaleString('en-US');
-    const parts = lead ? [{ t: s.slice(0, lead), c: C.signal }, { t: s.slice(lead) }] : [{ t: s }];
+    const parts = lead && s.length >= leadLen ? [{ t: s.slice(0, lead), c: C.signal }, { t: s.slice(lead) }] : [{ t: s }];
     HUD.headline(g, [parts], { y, size, reveal, color });
   }
   const label = (g, text, p, { color = C.soft, align = 'left', dy = 36, alpha = 1, size = 18 } = {}) =>
@@ -125,7 +125,7 @@ export async function buildShots(K) {
         const hideC = 1 - seg(t, T2 - .2, T2);
         if (hideC > 0) {
           g.save(); g.globalAlpha = hideC;
-          counter(g, Math.pow(ease.inOut((t - .95) / 2.1), 3) * 1e10, { y: 400, lead: 2, reveal: (t - .2) * 2.2 });
+          counter(g, Math.pow(ease.inOut((t - .95) / 2.1), 3) * 1e10, { y: 400, lead: 2, leadLen: 14, reveal: (t - .2) * 2.2 });
           HUD.headline(g, [[{ t: 'HUMANOID ROBOTS' }]], { y: 512, size: 90, reveal: (t - .7) * 2.2, color: C.soft });
           g.restore();
           const p = HUD.project(head, camera);
@@ -305,7 +305,7 @@ export async function buildShots(K) {
         const bag = box(.3, .36, .2, pm); bot.root.add(bag); bag.visible = false;
         const handP = v3();
         upd = (lt) => { bot.root.position.set(-.4, 0, 2.2 - lt * 1.0); bot.root.rotation.y = Math.PI; bot.bonePos('mixamorigRightHand', handP); bag.position.copy(bot.root.worldToLocal(handP.clone())).add(v3(0, -.2, 0)); bag.visible = true; };
-        center = v3(0, 1.2, 0); cam0 = 1.1; cam1 = .7; rad = 4.8; camH = 1.8;
+        center = v3(0, 1.1, .4); cam0 = .5; cam1 = .2; rad = 5.4; camH = 1.8;
       } else {
         const house = box(3, 2.4, 2.2, pm); house.position.set(-1.5, 1.2, -4.2); props.add(house);
         const roof = new THREE.Mesh(new THREE.CylinderGeometry(.01, 2, 1.2, 4, 1), pm); roof.rotation.y = Math.PI / 4; roof.position.set(-1.5, 3.0, -4.2); props.add(roof);
@@ -428,7 +428,7 @@ export async function buildShots(K) {
           HUD.mono(g, "TESLA'S TARGET", W / 2, 540, { size: 20, align: 'center', color: C.muted, alpha: seg(t, tMil + .3, tMil + .6) });
         } else {
           const v = Math.pow(ease.inOut((t - tYears) / 1.4), 2) * 10000;
-          counter(g, v, { y: 400, size: 200, lead: 2, reveal: (t - tYears + .05) * 3 });
+          counter(g, v, { y: 400, size: 200, lead: 2, leadLen: 6, reveal: (t - tYears + .05) * 3 });
           HUD.headline(g, [[{ t: 'YEARS', c: C.soft }]], { y: 500, size: 90, reveal: (t - tYears - .2) * 2.4 });
           HUD.mono(g, '10,000,000,000 ÷ 1,000,000 / YEAR', W / 2, 560, { size: 20, align: 'center', color: C.muted, alpha: seg(t, tYears + .5, tYears + .8) });
         }

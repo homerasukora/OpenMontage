@@ -2,7 +2,7 @@
 Usage: vo.py <kokoro_dir> <lines.json> <musk_audio.wav> <out_dir> [sid=27] [speed=0.92]
 Writes out_dir/vo.wav (48 kHz mono), out_dir/vo_musk.wav (Musk-only stem), out_dir/timing.json
 """
-import sys, json, numpy as np, soundfile as sf, sherpa_onnx
+import sys, os, json, numpy as np, soundfile as sf
 from math import gcd
 from scipy.signal import resample_poly
 kd, lines_f, musk_f, out = sys.argv[1:5]
@@ -12,10 +12,13 @@ SR = 48000
 GAP = {"L1": .35, "L2": .55, "L3": .45, "L4": .25, "MA": .45, "MB": .6, "L5": .3, "L6": .3, "L7": .4, "L8": .6,
        "L9": .45, "L10": .25, "MC": .15, "L11": .9, "L12": .45, "L13": 1.6}
 LEAD = .5
-cfg = sherpa_onnx.OfflineTtsConfig(model=sherpa_onnx.OfflineTtsModelConfig(kokoro=sherpa_onnx.OfflineTtsKokoroModelConfig(
+WAVDIR = os.environ.get("WAVDIR")  # pre-rendered lines (<KEY>.wav), e.g. OmniVoice; otherwise Kokoro
+if not WAVDIR:
+  import sherpa_onnx
+  cfg = sherpa_onnx.OfflineTtsConfig(model=sherpa_onnx.OfflineTtsModelConfig(kokoro=sherpa_onnx.OfflineTtsKokoroModelConfig(
     model=f"{kd}/model.onnx", voices=f"{kd}/voices.bin", tokens=f"{kd}/tokens.txt", data_dir=f"{kd}/espeak-ng-data",
     lexicon=f"{kd}/lexicon-us-en.txt", lang="en-us"), num_threads=4))
-tts = sherpa_onnx.OfflineTts(cfg)
+  tts = sherpa_onnx.OfflineTts(cfg)
 musk, msr = sf.read(musk_f, dtype="float32")
 if musk.ndim > 1: musk = musk.mean(1)
 if msr != SR: musk = resample_poly(musk, SR // gcd(SR, msr), msr // gcd(SR, msr)).astype(np.float32)
@@ -32,9 +35,11 @@ for key, text in json.load(open(lines_f)):
         a = a / (np.abs(a).max() + 1e-6) * .8
         typ, src = "musk", [float(s), float(e)]
     else:
-        g = tts.generate(text, sid=sid, speed=speed)
-        a = np.asarray(g.samples, np.float32)
-        a = resample_poly(a, SR // gcd(SR, g.sample_rate), g.sample_rate // gcd(SR, g.sample_rate)).astype(np.float32)
+        if WAVDIR:
+            a, gsr = sf.read(f"{WAVDIR}/{key}.wav", dtype="float32"); a = a.mean(1) if a.ndim > 1 else a
+        else:
+            g = tts.generate(text, sid=sid, speed=speed); a, gsr = np.asarray(g.samples, np.float32), g.sample_rate
+        a = resample_poly(a, SR // gcd(SR, gsr), gsr // gcd(SR, gsr)).astype(np.float32)
         a = trim(a); a = a / (np.abs(a).max() + 1e-6) * .85
         typ, src = "vo", None
     z = np.zeros_like(a)

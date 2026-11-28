@@ -1,44 +1,44 @@
 {
- "dur": 66.847,
+ "dur": 59.886,
  "segments": [
   {
    "key": "L1",
    "type": "vo",
    "text": "Elon Musk says there will be ten billion of these.",
    "s": 0.5,
-   "e": 3.601,
+   "e": 3.021,
    "src": null
   },
   {
    "key": "L2",
    "type": "vo",
    "text": "More robots than people on Earth.",
-   "s": 3.951,
-   "e": 6.039,
+   "s": 3.371,
+   "e": 5.135,
    "src": null
   },
   {
    "key": "L3",
    "type": "vo",
    "text": "He said it in Riyadh, in twenty twenty-four: at least ten billion humanoid robots, by twenty forty.",
-   "s": 6.589,
-   "e": 13.375,
+   "s": 5.685,
+   "e": 11.225,
    "src": null
   },
   {
    "key": "L4",
    "type": "vo",
    "text": "This year, he went further.",
-   "s": 13.825,
-   "e": 15.459,
+   "s": 11.675,
+   "e": 13.227,
    "src": null
   },
   {
    "key": "MA",
    "type": "musk",
    "text": "musk 45.30 48.95",
-   "s": 15.709,
-   "e": 19.359,
+   "s": 13.477,
+   "e": 17.127,
    "src": [
     45.3,
     48.95
@@ -48,8 +48,8 @@
    "key": "MB",
    "type": "musk",
    "text": "musk 7.05 10.95",
-   "s": 19.809,
-   "e": 23.709,
+   "s": 17.577,
+   "e": 21.477,
    "src": [
     7.05,
     10.95
@@ -59,83 +59,83 @@
    "key": "L5",
    "type": "vo",
    "text": "So what would they actually do?",
-   "s": 24.309,
-   "e": 26.2,
+   "s": 22.077,
+   "e": 23.708,
    "src": null
   },
   {
    "key": "L6",
    "type": "vo",
    "text": "Factories first. Then warehouses. Your groceries. Your lawn.",
-   "s": 26.5,
-   "e": 30.418,
+   "s": 24.008,
+   "e": 27.538,
    "src": null
   },
   {
    "key": "L7",
    "type": "vo",
    "text": "And, in his own words, they'll babysit your kids.",
-   "s": 30.718,
-   "e": 34.192,
+   "s": 27.838,
+   "e": 30.352,
    "src": null
   },
   {
    "key": "L8",
    "type": "vo",
    "text": "One robot that could replace you? From twenty thousand dollars.",
-   "s": 34.592,
-   "e": 38.738,
+   "s": 30.752,
+   "e": 34.373,
    "src": null
   },
   {
    "key": "L9",
    "type": "vo",
    "text": "Now, the math. Tesla is aiming for a million robots a year. At that pace, ten billion would take ten thousand years.",
-   "s": 39.338,
-   "e": 46.426,
+   "s": 34.973,
+   "e": 41.259,
    "src": null
   },
   {
    "key": "L10",
    "type": "vo",
    "text": "So either the plan is wrong... or something changes.",
-   "s": 46.876,
-   "e": 50.443,
+   "s": 41.709,
+   "e": 44.6,
    "src": null
   },
   {
    "key": "MC",
    "type": "musk",
-   "text": "musk 35.45 38.85",
-   "s": 50.693,
-   "e": 54.093,
+   "text": "musk 35.45 39.30",
+   "s": 44.85,
+   "e": 48.7,
    "src": [
     35.45,
-    38.85
+    39.3
    ]
   },
   {
    "key": "L11",
    "type": "vo",
    "text": "And the first robots for outside customers? Reportedly, late twenty twenty-seven.",
-   "s": 54.693,
-   "e": 60.048,
+   "s": 48.85,
+   "e": 53.658,
    "src": null
   },
   {
    "key": "L12",
    "type": "vo",
    "text": "Coincidence?",
-   "s": 60.948,
-   "e": 61.869,
+   "s": 54.558,
+   "e": 55.307,
    "src": null
   },
   {
    "key": "L13",
    "type": "vo",
    "text": "Every prediction leads to twenty twenty-seven.",
-   "s": 62.319,
-   "e": 65.247,
+   "s": 55.757,
+   "e": 58.286,
    "src": null
   }
  ]

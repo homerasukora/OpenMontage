@@ -1,6 +1,6 @@
-# VIRUS2027 — «10 billion robots» · сценарий v3 (собран, 9:16, 66.8 с)
+# VIRUS2027 — «10 billion robots» · сценарий v3 (собран, 9:16, 59.9 с)
 
-Озвучка: локальная Kokoro (`bm_lewis`, speed 0.92) — черновик под замену на ElevenLabs.
+Озвучка: OmniVoice (k2-fsa), голос «The Storyteller» из галереи VoiceStudio (male, elderly, low pitch, british accent), клонирован с одного референса для всех реплик. Веса OmniVoice — CC-BY-NC (некоммерческие): только черновик, финал — ElevenLabs. Длительность 59.9 с.
 Голос Маска — оригинальные фрагменты из присланного клипа (G20, 2026).
 Тайминг: `audio/timing.json` (сцены рендерятся строго по нему).
 
