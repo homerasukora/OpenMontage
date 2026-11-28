@@ -77,7 +77,6 @@ export async function buildShots(K) {
         pick.forEach((b, i) => { b.bonePos('mixamorigHead', heads[i]); heads[i].y += .1; });
       },
       hud(g, lt) {
-        HUD.tag(g, 'ON RECORD · E. MUSK · FII RIYADH · 29 OCT 2024', K.W / 2, 300, { size: 20 });
         HUD.headline(g, [[{ t: 'BY ', c: C.bg }, { t: '2040', c: C.signal }]], { y: 520, size: 210, reveal: (lt - .15) * 2, color: C.bg });
         const p0 = HUD.project(heads[0], camera), p1 = HUD.project(heads[1], camera), p2 = HUD.project(heads[2], camera);
         if (lt > .9) HUD.callout(g, p0.x, p0.y, p0.x + 150, p0.y + 40, ['PROJECTED: 10B+', `x. 4197  y. ${1693 + Math.round(lt * 7)}`], { color: C.bg, alpha: Math.min(1, (lt - .9) * 4) });

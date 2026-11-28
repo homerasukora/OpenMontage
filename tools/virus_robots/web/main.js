@@ -352,11 +352,9 @@ function chrome(g, t, shot) {
   const light = shot.mode === 'light';
   const fg = light ? C.bg : C.paper, mut = light ? '#5d5852' : C.muted;
   // top labels (below platform status bar)
-  HUD.mono(g, 'VIRUS2027 /// FILE 2027', 64, 150, { size: 20, color: fg, spacing: .2 });
   const fr = Math.floor(t * 30) % 30, s = Math.floor(t);
   const tc = `TC 00:00:${String(s).padStart(2, '0')}:${String(fr).padStart(2, '0')}`;
   HUD.mono(g, tc, W - 64, 150, { size: 20, color: mut, align: 'right', spacing: .14 });
-  HUD.mono(g, shot.index, 64, 182, { size: 18, color: mut, spacing: .2 });
   // REC dot
   if (Math.floor(t * 2) % 2 === 0) { g.fillStyle = C.signal; g.beginPath(); g.arc(W - 64 - 8, 176, 7, 0, Math.PI * 2); g.fill(); }
   // bottom: progress rule + V mark
