@@ -186,6 +186,14 @@ export class Screen {
     const brackets = new THREE.LineSegments(bg, new THREE.LineBasicMaterial({ color: new THREE.Color('#ff531f'), transparent: true }));
     this.border = border; this.brackets = brackets;
     this.group.add(border, brackets);
+    // physical slab behind the picture so the screen reads as a 3D object when the camera orbits
+    const depth = .09;
+    const slabCol = mode === 'light' ? new THREE.Color(0x24211d) : new THREE.Color(0x1b1916);
+    this.slab = new THREE.Mesh(new THREE.BoxGeometry(this.w + .06, this.h + .06, depth), new THREE.MeshBasicMaterial({ color: slabCol }));
+    this.slab.position.z = -depth / 2 - .004;
+    this.slabEdges = new THREE.LineSegments(new THREE.EdgesGeometry(this.slab.geometry), new THREE.LineBasicMaterial({ color: lc, transparent: true, opacity: .5 }));
+    this.slabEdges.position.copy(this.slab.position);
+    this.group.add(this.slab, this.slabEdges);
     // particle targets: grid over the plane
     this.nx = Math.round(Math.sqrt(8200 * clip.aspect)); this.ny = Math.round(this.nx / clip.aspect);
     this.targets = new Float32Array(this.nx * this.ny * 3); this.colors = new Float32Array(this.nx * this.ny * 3);
@@ -194,6 +202,7 @@ export class Screen {
     this.v = new THREE.Vector3();
   }
   get count() { return this.nx * this.ny; }
+  setClip(clip) { if (clip !== this.clip) { this.clip = clip; this.tex.image = clip.images[0]; this.tex.needsUpdate = true; } }
   frameAt(t) { const c = this.clip; return Math.min(c.images.length - 1, Math.max(0, Math.floor(t * c.fps))); }
   setTime(t, time = 0) {
     const f = this.frameAt(t);
@@ -204,6 +213,7 @@ export class Screen {
     this.uni.uReveal.value = v; this.mesh.visible = v > 0;
     this.border.material.opacity = .55 * smooth(v * 1.5); this.brackets.material.opacity = smooth(v * 1.5);
     this.border.visible = this.brackets.visible = v > 0;
+    this.slab.visible = this.slabEdges.visible = v > .35;
   }
   // world-space grid points + per-point colour (linear) from current frame
   sampleTargets() {

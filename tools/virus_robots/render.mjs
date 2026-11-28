@@ -44,7 +44,9 @@ async function frame(t) {
   return Buffer.from(b64, 'base64');
 }
 
-if (mode === 'stills') {
+if (mode === 'events') {
+  fs.writeFileSync(out, JSON.stringify(await page.evaluate(() => window.EVENTS), null, 1)); console.log('wrote', out);
+} else if (mode === 'stills') {
   fs.mkdirSync(out, { recursive: true });
   for (const t of a3.split(',').map(Number)) {
     const f = path.join(out, `still_${t.toFixed(2).replace('.', '_')}s.png`);

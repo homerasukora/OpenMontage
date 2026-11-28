@@ -344,12 +344,14 @@ async function boot() {
   compMat.uniforms.tGlyph.value = atlas.tex; compMat.uniforms.nGlyph.value = atlas.n;
   gltf = await new GLTFLoader().loadAsync('/assets/Xbot.glb');
   vMark = await loadImage('/assets/v_mark_from_video.png');
-  const footage = await FX.loadFootage(['babysit_sofa', 'babysit_floor', 'clone_face', 'clone_body', 'musk_placeholder']);
+  const man = await (await fetch('/web/footage/manifest.json')).json();
+  const footage = await FX.loadFootage(Object.keys(man));
   const seq = new URLSearchParams(location.search).get('seq') || 'v2demo';
   const { buildShots } = await import(`./seq_${seq}.js`);
   shots = await buildShots({ THREE, PAL, makeRobot, gridFloor, wireSphere, HUD, ease, W, H, FX, footage });
-  let t0 = 0; for (const s of shots) { s.start = t0; t0 += s.dur; }
+  let t0 = 0; for (const s of shots) { if (s.start === undefined) s.start = t0; else t0 = s.start; t0 += s.dur; }
   DURATION = t0;
+  window.EVENTS = shots.flatMap(s => s.events || []);
   window.DURATION = DURATION;
   window.SHOTS = shots.map(s => ({ name: s.name, start: s.start, dur: s.dur }));
 }
@@ -358,12 +360,8 @@ function chrome(g, t, shot, lt) {
   const light = shot.mode === 'light';
   const fg = light ? C.bg : C.paper, mut = light ? '#5d5852' : C.muted;
   // top labels (below platform status bar)
-  const fr = Math.floor(t * 30) % 30, s = Math.floor(t);
-  const tc = `TC 00:00:${String(s).padStart(2, '0')}:${String(fr).padStart(2, '0')}`;
-  HUD.mono(g, tc, W - 64, 150, { size: 20, color: mut, align: 'right', spacing: .14 });
-  // REC dot
-  if (Math.floor(t * 2) % 2 === 0) { g.fillStyle = C.signal; g.beginPath(); g.arc(W - 64 - 8, 176, 7, 0, Math.PI * 2); g.fill(); }
   // bottom: progress rule + V mark
+  if (shot.noChrome) return;
   // timeline 2024 -> 2040 with an unexplained 2027 marker
   const py = 1500, pw = 640, px = (W - pw) / 2;
   const yr = y => px + pw * (y - 2024) / 16;
@@ -409,7 +407,8 @@ function renderAt(t) {
   compMat.uniforms.mixTone.value = shot.mixTone ?? .38;
   renderer.setRenderTarget(rtComp); renderer.clear(); renderer.render(compScene, quadCam);
   // 5. CRT
-  const cut = Math.max(0, 1 - lt / .28), cutOut = Math.max(0, 1 - (shot.dur - lt) / .12);
+  const cg = shot.cutGlitch === false ? 0 : 1;
+  const cut = cg * Math.max(0, 1 - lt / .28), cutOut = cg * Math.max(0, 1 - (shot.dur - lt) / .12);
   crtMat.uniforms.glitch.value = Math.min(1, Math.max(cut, cutOut * .7, shot.glitch ? shot.glitch(lt) : 0));
   crtMat.uniforms.flash.value = cut * .12;
   crtMat.uniforms.time.value = t; crtMat.uniforms.light.value = light ? 1 : 0;

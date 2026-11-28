@@ -1,0 +1,142 @@
+{
+ "dur": 66.847,
+ "segments": [
+  {
+   "key": "L1",
+   "type": "vo",
+   "text": "Elon Musk says there will be ten billion of these.",
+   "s": 0.5,
+   "e": 3.601,
+   "src": null
+  },
+  {
+   "key": "L2",
+   "type": "vo",
+   "text": "More robots than people on Earth.",
+   "s": 3.951,
+   "e": 6.039,
+   "src": null
+  },
+  {
+   "key": "L3",
+   "type": "vo",
+   "text": "He said it in Riyadh, in twenty twenty-four: at least ten billion humanoid robots, by twenty forty.",
+   "s": 6.589,
+   "e": 13.375,
+   "src": null
+  },
+  {
+   "key": "L4",
+   "type": "vo",
+   "text": "This year, he went further.",
+   "s": 13.825,
+   "e": 15.459,
+   "src": null
+  },
+  {
+   "key": "MA",
+   "type": "musk",
+   "text": "musk 45.30 48.95",
+   "s": 15.709,
+   "e": 19.359,
+   "src": [
+    45.3,
+    48.95
+   ]
+  },
+  {
+   "key": "MB",
+   "type": "musk",
+   "text": "musk 7.05 10.95",
+   "s": 19.809,
+   "e": 23.709,
+   "src": [
+    7.05,
+    10.95
+   ]
+  },
+  {
+   "key": "L5",
+   "type": "vo",
+   "text": "So what would they actually do?",
+   "s": 24.309,
+   "e": 26.2,
+   "src": null
+  },
+  {
+   "key": "L6",
+   "type": "vo",
+   "text": "Factories first. Then warehouses. Your groceries. Your lawn.",
+   "s": 26.5,
+   "e": 30.418,
+   "src": null
+  },
+  {
+   "key": "L7",
+   "type": "vo",
+   "text": "And, in his own words, they'll babysit your kids.",
+   "s": 30.718,
+   "e": 34.192,
+   "src": null
+  },
+  {
+   "key": "L8",
+   "type": "vo",
+   "text": "One robot that could replace you? From twenty thousand dollars.",
+   "s": 34.592,
+   "e": 38.738,
+   "src": null
+  },
+  {
+   "key": "L9",
+   "type": "vo",
+   "text": "Now, the math. Tesla is aiming for a million robots a year. At that pace, ten billion would take ten thousand years.",
+   "s": 39.338,
+   "e": 46.426,
+   "src": null
+  },
+  {
+   "key": "L10",
+   "type": "vo",
+   "text": "So either the plan is wrong... or something changes.",
+   "s": 46.876,
+   "e": 50.443,
+   "src": null
+  },
+  {
+   "key": "MC",
+   "type": "musk",
+   "text": "musk 35.45 38.85",
+   "s": 50.693,
+   "e": 54.093,
+   "src": [
+    35.45,
+    38.85
+   ]
+  },
+  {
+   "key": "L11",
+   "type": "vo",
+   "text": "And the first robots for outside customers? Reportedly, late twenty twenty-seven.",
+   "s": 54.693,
+   "e": 60.048,
+   "src": null
+  },
+  {
+   "key": "L12",
+   "type": "vo",
+   "text": "Coincidence?",
+   "s": 60.948,
+   "e": 61.869,
+   "src": null
+  },
+  {
+   "key": "L13",
+   "type": "vo",
+   "text": "Every prediction leads to twenty twenty-seven.",
+   "s": 62.319,
+   "e": 65.247,
+   "src": null
+  }
+ ]
+}

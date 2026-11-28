@@ -1,2 +1,5 @@
 style_test/*.mp4
 style_test/*.png
+render/
+audio/*.wav
+audio/voices/

@@ -1,59 +1,39 @@
-# VIRUS2027 — «10 billion robots» · сценарий v2 (9:16, ~55 с)
+# VIRUS2027 — «10 billion robots» · сценарий v3 (собран, 9:16, 66.8 с)
 
-Закадровый текст на английском, пометки на русском. Темп ~2.5 слова/с.
+Озвучка: локальная Kokoro (`bm_lewis`, speed 0.92) — черновик под замену на ElevenLabs.
+Голос Маска — оригинальные фрагменты из присланного клипа (G20, 2026).
+Тайминг: `audio/timing.json` (сцены рендерятся строго по нему).
 
-## Что изменилось с v1
-- 0:07 — вместо пересказа вставляем **оригинальный фрагмент Маска с FII8** (его голос), обработанный под стиль: экран собирается из частиц в пространстве.
-- 0:30 — цена подаётся триггерно: *One robot that could replace you? From twenty thousand dollars.*
-- 0:22 — babysitting: ваш ролик с Optimus и ребёнком (без подписи «Babysitting in 2028?»).
-- 0:40 — ваш ролик CloneRobotics (без плашки Deepen.AI) как пример того, что «что-то меняется».
-- Монтажный принцип из референса: **сцена цельная, объекты прилетают частицами, собираются, показывают своё и разлетаются**. Два «мира»: белое архивное пространство и чёрная пустота. Жёсткая склейка с glitch только при смене мира на поворотных моментах.
-- Убраны верхние надписи и плашка «ON RECORD». Внизу шкала 2024 · 2027 ? · 2040 + V-знак.
-
-## Как держим внимание
-1. Открытая петля: отметка **2027 ?** на шкале мигает с первой секунды и раскрывается только в 0:44.
-2. Сквозной герой **UNIT 0001**: появляется в первом кадре, теряется в армии, останавливается и смотрит в камеру, в финале стоит в темноте.
-3. Масштаб растёт: 1 робот → армия → миллиард → «все люди вместе» → расчёт → 2027.
-4. Каждые 2–3 с что-то собирается или распадается: частицы держат глаз без резких склеек.
-5. Поворот на 0:33: цифра из хука упирается в математику.
-6. Полсекунды тишины перед «Coincidence?».
-
-## Сцены
-
-| # | Время | Звук / VO (EN) | Визуал | Ключевая фраза |
+| # | Время | Звук | Визуал | Ключевая фраза |
 |---|---|---|---|---|
-| 1 | 0:00–0:04 | VO: Elon Musk says there will be ten billion of these. | **Чёрная пустота.** Пыль стягивается в UNIT 0001, робот поворачивает голову в камеру. Счётчик 0 → 10,000,000,000 с механическим тиком. | `10,000,000,000` |
-| 2 | 0:04–0:07 | VO: More robots than people on Earth. | Робот рассыпается, частицы собираются в две сферы: «HUMANS 8.2B» и большую оранжевую «ROBOTS 10B+». | `MORE ROBOTS THAN PEOPLE?` |
-| 3 | 0:07–0:13 | **Голос Маска** (FII8, 29.10.2024), ~5 с: фраза про 10 млрд / больше роботов, чем людей, к 2040. | Glitch → **белое пространство.** Сферы распадаются, частицы собираются в экран с его выступлением (ч/б, дизер, сканлайны). Под экраном мелко: `FII8 · RIYADH · 29.10.2024`. Шкала уезжает к 2040. | `BY 2040` |
-| 4 | 0:13–0:17 | VO: This year he raised the stakes: well over a billion, within ten years. | Экран рассыпается в армию: роботы собираются рядами и маршируют на камеру. Камера отъезжает вверх: армия — квадрат в бесконечной сетке. Трекинг-бокс находит UNIT 0001. | `1,000,000,000+ · 2036` |
-| 5 | 0:17–0:20 | VO: More productive, he says, than all humans combined. | Армия сжимается в одного робота на весах, на другой чаше облако точек «humans». Робот перевешивает. | `ALL HUMANS COMBINED?` |
-| 6 | 0:20–0:23 | VO: So what would they actually do? | UNIT 0001 идёт, останавливается, поворачивает голову в камеру. Freeze. | `WHAT WILL THEY DO?` |
-| 7 | 0:23–0:31 | VO: Factories first. Then warehouses. Your groceries. Your lawn. And, in his own words — they'll babysit your kids. | Робот распадается, частицы по ~1 с собирают задачи: конвейер с коробками → стеллаж → пакет продуктов → газон. На «babysit» частицы собирают **экран с вашим роликом** (Optimus с ребёнком на диване). | `TASK: BABYSITTING` (вычёркивание снимается) |
-| 8 | 0:31–0:34 | VO: One robot that could replace you? From twenty thousand dollars. | Экран рассыпается обратно в робота, на запястье качается оранжевый ценник. | `FROM $20,000` |
-| 9 | 0:34–0:41 | VO: Now the math. Tesla is aiming for a million robots a year. At that pace, ten billion takes ten thousand years. | Glitch → **чёрная пустота.** Счётчик из хука ползёт медленно, счётчик лет разгоняется до 10,000. Оранжевая линия тянется по сетке к горизонту и не доходит. | `10,000 YEARS` |
-| 10 | 0:41–0:45 | VO: So either the plan is wrong… or something changes. | Частицы собирают **экран с роликом CloneRobotics** (синтетический человек). Подпись `CLONE ROBOTICS · SYNTHETIC HUMAN`. | `OR SOMETHING CHANGES` |
-| 11 | 0:45–0:50 | VO: And the first robots for outside customers? Reportedly — late 2027. | Экран рассыпается, частицы стекаются в шкалу внизу, она вырастает на весь экран, загорается отметка 2027. | `LATE 2027` |
-| 12 | 0:50–0:55 | Тишина 0.5 с. VO: Coincidence? Every prediction leads to 2027. | Из темноты собирается армия, все головы синхронно поворачиваются в камеру. *(Опция: среди серых роботов одна оранжевая Вира.)* | `2027` · `FOLLOW THE SIGNAL` |
+| 1 | 0:00 | VO: Elon Musk says there will be ten billion of these. | Чёрная пустота: пыль собирается в UNIT 0001, камера облетает его на 140°, робот поворачивает голову. Счётчик → 10,000,000,000. | `10,000,000,000 HUMANOID ROBOTS` |
+| 2 | 0:04 | VO: More robots than people on Earth. | Робот рассыпается, частицы летят в глобус; на нём серые точки «люди», оранжевые «роботы» множатся. | `MORE ROBOTS THAN PEOPLE?` |
+| 3 | 0:06 | VO: He said it in Riyadh, in 2024: at least ten billion humanoid robots, by 2040. | Glitch → белое пространство: армия проявляется рядами и идёт на камеру, низкий облёт. | `AT LEAST 10 BILLION / BY 2040` |
+| 4 | 0:14 | VO: This year, he went further. | Армия распадается, частицы собирают 3D-экран. | `HE WENT FURTHER` |
+| 5 | 0:16 | **Маск:** «Ten years from now, I would say there are well over a billion humanoid robots.» | Экран с Маском, камера облетает его (видна толщина). | `WELL OVER A BILLION` |
+| 6 | 0:20 | **Маск:** «…the billion humanoid robots will be more productive than all humans combined.» | То же, glitch-переход. | `MORE PRODUCTIVE THAN / ALL HUMANS COMBINED` |
+| 7 | 0:24 | VO: So what would they actually do? | Чёрный город из цифр собирается, камера-кран опускается к улице, UNIT 0001 идёт среди роботов. | `WHAT WILL THEY DO?` |
+| 8 | 0:26 | VO: Factories first. Then warehouses. Your groceries. Your lawn. | 4 быстрые 3D-сцены: конвейер, стеллажи склада, дом с пакетом продуктов, газон с газонокосилкой. | `TASK: FACTORY / WAREHOUSE / GROCERIES / LAWN` |
+| 9 | 0:31 | VO: And, in his own words, they'll babysit your kids. | 3D-экран с вашим роликом (Optimus с ребёнком), облёт. | `IN HIS OWN WORDS` → `TASK: BABYSITTING` |
+| 10 | 0:35 | VO: One robot that could replace you? From twenty thousand dollars. | Экран рассыпается в робота, оранжевый ценник на запястье. | `FROM $20,000` |
+| 11 | 0:39 | VO: Now, the math. Tesla is aiming for a million robots a year. At that pace, ten billion would take ten thousand years. | Чёрная пустота: роботы по одному появляются на оранжевой линии и уходят к горизонту. | `1,000,000 ROBOTS / YEAR` → `10,000 YEARS` |
+| 12 | 0:47 | VO: So either the plan is wrong… or something changes. | Робот «замирает» с помехами, затем рассыпается в экран CloneRobotics. | `OR SOMETHING CHANGES` |
+| 13 | 0:51 | **Маск:** «Robots will start manufacturing the robots. So you get a recursive effect.» | Маленький экран с Маском; внизу роботы собирают роботов (частицы перетекают от одного к другому). | `ROBOTS MAKING ROBOTS` → `A RECURSIVE EFFECT` |
+| 14 | 0:55 | VO: And the first robots for outside customers? Reportedly, late 2027. | Шкала лет 2024–2040 в 3D, камера едет к 2027, частицы собирают оранжевую стойку. | `LATE 2027` |
+| 15 | 1:01 | Тишина → VO: Coincidence? | Армия в темноте, головы отвёрнуты → все разом поворачиваются в камеру. | `COINCIDENCE?` |
+| 16 | 1:02 | VO: Every prediction leads to 2027. | Армия растворяется. | `EVERY PREDICTION LEADS TO 2027 · FOLLOW THE SIGNAL` |
 
-## Звук
-Низкий дрон; шорох/шипение на сборке и распаде частиц; механический тик на счётчиках; удар и шум плёнки на смене мира; сервоприводы на поворотах головы; суб-пульс к 0:45; тишина перед «Coincidence?»; удар на «2027». Голос Маска — с лёгкой «архивной» обработкой (полоса, шум плёнки).
+## Музыка и звук
+Синтезированный в коде саундтрек (без лицензий): тёмный пэд в ре миноре (Dm–Bb–Gm–A), саб-дрон, «сердцебиение», темп которого растёт вместе с напряжением, редкие колокола, к второй половине вступает «хор». Пик напряжения на «late 2027», затем полсекунды тишины и удар на «2027». Звуковые эффекты привязаны к событиям сцен: сборка и распад частиц, glitch на склейках, тики счётчиков, удары, сервоприводы при повороте голов. Музыка автоматически приглушается под голосом.
 
-## Футаж
-| Ролик | Что берём | Обрезка | Статус |
-|---|---|---|---|
-| Маск, FII8 (YouTube, FII Institute: «Elon Musk predicts 10 BILLION robots… at #FII8», id `JQW8daABLQY`; полная сессия `3JkkWfzc4Jg`) | ~5 с с цитатой | — | **нужен файл**: YouTube не отдаёт видео облачному серверу |
-| Optimus + ребёнок (ваш файл) | 18.7–20.75 с (диван) | без верхних постеров и подписи «Babysitting in 2028?» | готово |
-| CloneRobotics (ваш файл) | 0.2–3.2 с (лицо), 8.9–11.6 с (в полный рост) | без плашки Deepen.AI | готово |
-
-## Факты и проверка
-| Строка | Факт | Источник | Статус |
-|---|---|---|---|
-| 1, 3 | ≥10 млрд гуманоидов к 2040, FII Эр-Рияд, 29.10.2024 | Reuters via The Star; Deccan Herald; клип FII Institute | ок |
-| 2 | Население Земли ≈ 8.2 млрд | UN WPP 2024 | ок |
-| 4–5 | «Ten years from now… well over a billion», «more productive than all humans combined», G20, 01.09.2026 | Hola, Digit, IBTimes | ок (вторичные источники) |
-| 7 | teacher / babysit your kids / walk your dog / mow your lawn / get the groceries — We, Robot, 10.10.2024 | Gizmodo, запись презентации | ок |
-| 7 | Ролик с Optimus и ребёнком — происхождение неизвестно (возможна постановка или телеуправление) | — | не подписывать как демонстрацию Tesla |
-| 8 | $20–30K в долгосроке (We, Robot); $20–25K (FII) | Quartz; Reuters | ок, «from $20,000» корректно |
-| 9 | Цель Tesla — 1 млн Optimus/год; 10 млрд ÷ 1 млн/год = 10,000 лет | The Register, Electrek; расчёт | ок |
-| 10 | Ролик — CloneRobotics, не Tesla | ваш файл | подписать в кадре |
-| 11 | Первые внешние клиенты — конец 2027 | Not a Tesla App (вторичный) | **перепроверить**, в тексте «Reportedly» |
+## Источники
+| Факт | Источник |
+|---|---|
+| ≥10 млрд гуманоидов к 2040 (FII8, Эр-Рияд, 29.10.2024) | Reuters via The Star; Deccan Herald; клип FII Institute |
+| «Ten years from now… well over a billion», «more productive than all humans combined», «recursive effect» — G20, 2026 | присланный клип; Hola, Digit, IBTimes |
+| Население ≈ 8.2 млрд | UN WPP 2024 |
+| «babysit your kids» — We, Robot, 10.10.2024 | Gizmodo / запись презентации |
+| $20–30K в долгосроке | Quartz (We, Robot); Reuters (FII: $20–25K) |
+| Цель Tesla — 1 млн Optimus/год | The Register, Electrek |
+| Первые внешние клиенты — конец 2027 | Not a Tesla App — **вторичный источник, перепроверить** |
+| Ролик с ребёнком — происхождение неизвестно; ролик CloneRobotics — не Tesla (подписан в кадре) | — |
