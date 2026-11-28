@@ -1,0 +1,72 @@
+{
+  "babysit_sofa": {
+    "frames": 31,
+    "fps": 15,
+    "aspect": 0.7291139240506329,
+    "src": "9096e6a1-7447494594356719632.mp4",
+    "range": [
+      18.7,
+      20.75
+    ],
+    "crop": [
+      0,
+      210,
+      576,
+      790
+    ]
+  },
+  "babysit_floor": {
+    "frames": 45,
+    "fps": 15,
+    "aspect": 0.6228571428571429,
+    "src": "9096e6a1-7447494594356719632.mp4",
+    "range": [
+      5.05,
+      8.0
+    ],
+    "crop": [
+      140,
+      170,
+      436,
+      700
+    ]
+  },
+  "clone_face": {
+    "frames": 45,
+    "fps": 15,
+    "aspect": 0.8275862068965517,
+    "src": "0c9b5a18-the.digital.boy_TikTokDownloader.com_37877.mp4",
+    "range": [
+      0.2,
+      3.2
+    ],
+    "crop": [
+      0,
+      250,
+      576,
+      696
+    ]
+  },
+  "clone_body": {
+    "frames": 41,
+    "fps": 15,
+    "aspect": 0.8275862068965517,
+    "src": "0c9b5a18-the.digital.boy_TikTokDownloader.com_37877.mp4",
+    "range": [
+      8.9,
+      11.6
+    ],
+    "crop": [
+      0,
+      250,
+      576,
+      696
+    ]
+  },
+  "musk_placeholder": {
+    "frames": 30,
+    "fps": 15,
+    "aspect": 1.7757009345794392,
+    "src": "generated placeholder"
+  }
+}

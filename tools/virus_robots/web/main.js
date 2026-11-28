@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { buildShots } from './shots.js';
+import * as FX from './fx.js';
 
 const W = 1080, H = 1920;
 export const PAL = {
@@ -182,8 +182,10 @@ const depthOnly = new THREE.MeshBasicMaterial({ colorWrite: false });
 let gltf = null;
 export function makeRobot(opts = {}) {
   const root = SkeletonUtils.clone(gltf.scene);
-  const surf = new THREE.MeshStandardMaterial({ color: opts.color ?? 0xcfcfcf, roughness: .38, metalness: .25 });
-  const joint = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .5, metalness: .4 });
+  const uReveal = { value: 1 };
+  const surf = FX.makeDissolvable(new THREE.MeshStandardMaterial({ color: opts.color ?? 0xcfcfcf, roughness: .38, metalness: .25 }), uReveal);
+  const joint = FX.makeDissolvable(new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .5, metalness: .4 }), uReveal);
+  const extras = [];
   root.traverse(o => {
     if (o.isMesh) {
       o.frustumCulled = false;
@@ -197,7 +199,7 @@ export function makeRobot(opts = {}) {
     const ws = new THREE.Vector3(); b.getWorldScale(ws); const k = 1 / ws.x; // bones live in a scaled (cm) space
     const m = new THREE.Mesh(new THREE.SphereGeometry(r * k, 12, 8), sig);
     m.position.set(off[0] * k, off[1] * k, off[2] * k);
-    b.add(m);
+    b.add(m); extras.push(m);
   };
   if (opts.dots !== false) {
     dot('mixamorigLeftLeg', .022, [0, 0, .05]); dot('mixamorigRightLeg', .022, [0, 0, .05]);
@@ -214,7 +216,7 @@ export function makeRobot(opts = {}) {
         new THREE.MeshStandardMaterial({ color: 0x060606, roughness: .15, metalness: .5 }));
       visor.scale.set(.074 * k, .058 * k, .05 * k);
       visor.position.set(0, .095 * k, .1 * k);
-      hb.add(visor);
+      hb.add(visor); extras.push(visor);
     }
   }
   const mixer = new THREE.AnimationMixer(root);
@@ -228,6 +230,7 @@ export function makeRobot(opts = {}) {
       return api;
     },
     pose(t) { mixer.setTime(t); root.updateMatrixWorld(true); },
+    reveal(v) { uReveal.value = v; root.visible = v > .001; extras.forEach(e => e.visible = v > .7); },
     bonePos(name, out = new THREE.Vector3()) {
       const b = root.getObjectByName(name); root.updateMatrixWorld(true); return b.getWorldPosition(out);
     },
@@ -341,14 +344,17 @@ async function boot() {
   compMat.uniforms.tGlyph.value = atlas.tex; compMat.uniforms.nGlyph.value = atlas.n;
   gltf = await new GLTFLoader().loadAsync('/assets/Xbot.glb');
   vMark = await loadImage('/assets/v_mark_from_video.png');
-  shots = await buildShots({ THREE, PAL, makeRobot, gridFloor, wireSphere, HUD, ease, W, H });
+  const footage = await FX.loadFootage(['babysit_sofa', 'babysit_floor', 'clone_face', 'clone_body', 'musk_placeholder']);
+  const seq = new URLSearchParams(location.search).get('seq') || 'v2demo';
+  const { buildShots } = await import(`./seq_${seq}.js`);
+  shots = await buildShots({ THREE, PAL, makeRobot, gridFloor, wireSphere, HUD, ease, W, H, FX, footage });
   let t0 = 0; for (const s of shots) { s.start = t0; t0 += s.dur; }
   DURATION = t0;
   window.DURATION = DURATION;
   window.SHOTS = shots.map(s => ({ name: s.name, start: s.start, dur: s.dur }));
 }
 
-function chrome(g, t, shot) {
+function chrome(g, t, shot, lt) {
   const light = shot.mode === 'light';
   const fg = light ? C.bg : C.paper, mut = light ? '#5d5852' : C.muted;
   // top labels (below platform status bar)
@@ -358,12 +364,21 @@ function chrome(g, t, shot) {
   // REC dot
   if (Math.floor(t * 2) % 2 === 0) { g.fillStyle = C.signal; g.beginPath(); g.arc(W - 64 - 8, 176, 7, 0, Math.PI * 2); g.fill(); }
   // bottom: progress rule + V mark
-  const py = 1500, pw = 500, px = (W - pw) / 2;
-  g.fillStyle = light ? 'rgba(9,8,6,.22)' : 'rgba(232,227,219,.22)'; g.fillRect(px, py, pw, 3);
-  g.fillStyle = C.signal; g.fillRect(px, py, pw * (t / DURATION), 3);
+  // timeline 2024 -> 2040 with an unexplained 2027 marker
+  const py = 1500, pw = 640, px = (W - pw) / 2;
+  const yr = y => px + pw * (y - 2024) / 16;
+  g.fillStyle = light ? 'rgba(9,8,6,.25)' : 'rgba(232,227,219,.25)'; g.fillRect(px, py, pw, 2);
+  const prog = shot.timeline ? shot.timeline(lt) : t / DURATION;
+  g.fillStyle = fg; g.fillRect(px, py, pw * prog, 2);
+  for (const [y, lab] of [[2024, '2024'], [2027, '2027'], [2040, '2040']]) {
+    const x = yr(y), is27 = y === 2027;
+    g.fillStyle = is27 ? C.signal : mut; g.fillRect(x - 1, py - 9, 2, 20);
+    HUD.mono(g, lab + (is27 ? ' ?' : ''), x, py + 36, { size: 16, align: 'center', color: is27 ? C.signal : mut, spacing: .12, alpha: is27 ? (.55 + .45 * Math.abs(Math.sin(t * 2.2))) : 1 });
+  }
+  g.fillStyle = C.signal; g.beginPath(); g.arc(px + pw * prog, py + 1, 5, 0, Math.PI * 2); g.fill();
   if (vMark) {
     const vw = 70, vh = vw * vMark.height / vMark.width;
-    g.save(); if (light) g.filter = 'invert(1) brightness(.12)'; g.drawImage(vMark, W / 2 - vw / 2, py + 34, vw, vh); g.restore();
+    g.save(); if (light) g.filter = 'invert(1) brightness(.12)'; g.drawImage(vMark, W / 2 - vw / 2, py + 64, vw, vh); g.restore();
   }
 }
 
@@ -387,7 +402,7 @@ function renderAt(t) {
   // 3. HUD
   hud.clearRect(0, 0, W, H);
   shot.hud(hud, lt, t);
-  chrome(hud, t, shot);
+  chrome(hud, t, shot, lt);
   hudTex.needsUpdate = true;
   // 4. composite
   compMat.uniforms.light.value = light ? 1 : 0;

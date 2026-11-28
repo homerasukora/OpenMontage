@@ -32,7 +32,7 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ena
 const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
 page.on('console', m => console.log('[page]', m.text()));
 page.on('pageerror', e => console.log('[pageerror]', e.message));
-await page.goto(`http://127.0.0.1:${port}/web/index.html`);
+await page.goto(`http://127.0.0.1:${port}/web/index.html?seq=${process.env.SEQ || 'v2demo'}`);
 await page.waitForFunction(() => window.__ready !== undefined);
 await page.evaluate(() => window.__ready);
 const DUR = await page.evaluate(() => window.DURATION);
