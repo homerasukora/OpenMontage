@@ -4,3 +4,4 @@ render/
 audio/*.wav
 audio/voices/
 audio/omni/
+*.mp4
