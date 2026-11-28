@@ -9,8 +9,8 @@ kd, lines_f, musk_f, out = sys.argv[1:5]
 sid = int(sys.argv[5]) if len(sys.argv) > 5 else 27
 speed = float(sys.argv[6]) if len(sys.argv) > 6 else 0.92
 SR = 48000
-GAP = {"L1": .35, "L2": .55, "L3": .45, "L4": .25, "MA": .45, "MB": .6, "L5": .3, "L6": .3, "L7": .4, "L8": .6,
-       "L9": .45, "L10": .25, "MC": .15, "L11": .9, "L12": .45, "L13": 1.6}
+GAP = {"L1": 1.1, "L2": .55, "L3": .45, "L4": .3, "MB": .6, "L5": 1.0, "L6a": .9, "L6b": .9, "L6c": .9, "L6d": .9,
+       "L7": .6, "L8": 1.4, "L9": .7, "L10": .25, "MC": .5, "L11": .9, "L12": .45, "L13": 1.8}
 LEAD = .5
 WAVDIR = os.environ.get("WAVDIR")  # pre-rendered lines (<KEY>.wav), e.g. OmniVoice; otherwise Kokoro
 if not WAVDIR:

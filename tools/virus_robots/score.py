@@ -39,7 +39,7 @@ def reverb(x, secs=2.8, wet=.35, seed=1):
 
 # ---------------- tension curve ----------------
 def key(k, side='s'): return SEG[k][side]
-pts = [(0, .18), (key('L2'), .3), (key('L3'), .42), (key('MA'), .5), (key('L5'), .5), (key('L7'), .55), (key('L9'), .62),
+pts = [(0, .18), (key('L2'), .3), (key('L3'), .42), (key('MB'), .5), (key('L5'), .5), (key('L7'), .55), (key('L9'), .62),
        (key('L10'), .7), (key('MC'), .78), (key('L11'), .85), (key('L11', 'e') - .3, 1.0), (key('L11', 'e') + .15, .0),
        (key('L12'), .0), (key('L12') + .3, .7), (key('L13'), .75), (key('L13') + .5, 1.0), (DUR - 1.5, .7), (DUR, .0)]
 T = np.interp(t_all, [p[0] for p in pts], [p[1] for p in pts])
@@ -148,6 +148,9 @@ for e in EV:
         while tb < d:
             n = int(.008 * SR); c = bp(noise(.008), 1800, 5000) * np.exp(-np.arange(n) / SR * 600)
             put(sfx, c, t0 + tb, .35, .2); tb += .09 - .06 * (tb / d)
+    elif ty == 'key':
+        n = int(.03 * SR); c = bp(noise(.03), 900, 4000) * np.exp(-np.arange(n) / SR * 180)
+        put(sfx, c, t0, .4, .15)
     elif ty == 'riser':
         d = e.get("d", 1.); n = int(d * SR); s = sweep_noise(d, 300, 7000) * np.linspace(0, 1, n) ** 2
         s += np.sin(2 * np.pi * np.cumsum(np.linspace(110, 880, n)) / SR) * np.linspace(0, 1, n) ** 2 * .3

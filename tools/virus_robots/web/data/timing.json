@@ -1,5 +1,5 @@
 {
- "dur": 59.886,
+ "dur": 70.064,
  "segments": [
   {
    "key": "L1",
@@ -13,129 +13,142 @@
    "key": "L2",
    "type": "vo",
    "text": "More robots than people on Earth.",
-   "s": 3.371,
-   "e": 5.135,
+   "s": 4.121,
+   "e": 5.885,
    "src": null
   },
   {
    "key": "L3",
    "type": "vo",
    "text": "He said it in Riyadh, in twenty twenty-four: at least ten billion humanoid robots, by twenty forty.",
-   "s": 5.685,
-   "e": 11.225,
+   "s": 6.435,
+   "e": 11.975,
    "src": null
   },
   {
    "key": "L4",
    "type": "vo",
    "text": "This year, he went further.",
-   "s": 11.675,
-   "e": 13.227,
+   "s": 12.425,
+   "e": 13.977,
    "src": null
-  },
-  {
-   "key": "MA",
-   "type": "musk",
-   "text": "musk 45.30 48.95",
-   "s": 13.477,
-   "e": 17.127,
-   "src": [
-    45.3,
-    48.95
-   ]
   },
   {
    "key": "MB",
    "type": "musk",
-   "text": "musk 7.05 10.95",
-   "s": 17.577,
-   "e": 21.477,
+   "text": "musk 0.00 11.10",
+   "s": 14.277,
+   "e": 25.377,
    "src": [
-    7.05,
-    10.95
+    0.0,
+    11.1
    ]
   },
   {
    "key": "L5",
    "type": "vo",
    "text": "So what would they actually do?",
-   "s": 22.077,
-   "e": 23.708,
+   "s": 25.977,
+   "e": 27.608,
    "src": null
   },
   {
-   "key": "L6",
+   "key": "L6a",
    "type": "vo",
-   "text": "Factories first. Then warehouses. Your groceries. Your lawn.",
-   "s": 24.008,
-   "e": 27.538,
+   "text": "Factories first.",
+   "s": 28.608,
+   "e": 30.055,
+   "src": null
+  },
+  {
+   "key": "L6b",
+   "type": "vo",
+   "text": "Then warehouses.",
+   "s": 30.955,
+   "e": 31.927,
+   "src": null
+  },
+  {
+   "key": "L6c",
+   "type": "vo",
+   "text": "Your groceries.",
+   "s": 32.827,
+   "e": 33.645,
+   "src": null
+  },
+  {
+   "key": "L6d",
+   "type": "vo",
+   "text": "Your lawn.",
+   "s": 34.545,
+   "e": 35.226,
    "src": null
   },
   {
    "key": "L7",
    "type": "vo",
    "text": "And, in his own words, they'll babysit your kids.",
-   "s": 27.838,
-   "e": 30.352,
+   "s": 36.126,
+   "e": 38.64,
    "src": null
   },
   {
    "key": "L8",
    "type": "vo",
    "text": "One robot that could replace you? From twenty thousand dollars.",
-   "s": 30.752,
-   "e": 34.373,
+   "s": 39.24,
+   "e": 42.861,
    "src": null
   },
   {
    "key": "L9",
    "type": "vo",
    "text": "Now, the math. Tesla is aiming for a million robots a year. At that pace, ten billion would take ten thousand years.",
-   "s": 34.973,
-   "e": 41.259,
+   "s": 44.261,
+   "e": 50.547,
    "src": null
   },
   {
    "key": "L10",
    "type": "vo",
    "text": "So either the plan is wrong... or something changes.",
-   "s": 41.709,
-   "e": 44.6,
+   "s": 51.247,
+   "e": 54.138,
    "src": null
   },
   {
    "key": "MC",
    "type": "musk",
-   "text": "musk 35.45 39.30",
-   "s": 44.85,
-   "e": 48.7,
+   "text": "musk 35.46 39.40",
+   "s": 54.388,
+   "e": 58.328,
    "src": [
-    35.45,
-    39.3
+    35.46,
+    39.4
    ]
   },
   {
    "key": "L11",
    "type": "vo",
    "text": "And the first robots for outside customers? Reportedly, late twenty twenty-seven.",
-   "s": 48.85,
-   "e": 53.658,
+   "s": 58.828,
+   "e": 63.636,
    "src": null
   },
   {
    "key": "L12",
    "type": "vo",
    "text": "Coincidence?",
-   "s": 54.558,
-   "e": 55.307,
+   "s": 64.536,
+   "e": 65.285,
    "src": null
   },
   {
    "key": "L13",
    "type": "vo",
    "text": "Every prediction leads to twenty twenty-seven.",
-   "s": 55.757,
-   "e": 58.286,
+   "s": 65.735,
+   "e": 68.264,
    "src": null
   }
  ]

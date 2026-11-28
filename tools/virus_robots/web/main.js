@@ -283,8 +283,14 @@ export const HUD = {
     g.fillText(text.toUpperCase(), x, y); g.restore();
   },
   // multi-line headline. parts: [[{t:'BY ', c:paper}, {t:'2040', c:signal}], ...]
-  headline(g, lines, { y, size = 150, reveal = 1, lh = .9, align = 'center', x = W / 2, color = C.paper, smear = 0 } = {}) {
+  headline(g, lines, { y, size = 150, reveal = 1, lh = .9, align = 'center', x = W / 2, color = C.paper, smear = 0, maxW = W - 130 } = {}) {
     g.save(); g.font = `800 ${size}px "Barlow Condensed"`; g.textBaseline = 'alphabetic'; g.letterSpacing = `${-0.015 * size}px`;
+    // auto-fit: shrink the whole block so its widest line stays inside the safe width
+    const widest = Math.max(...lines.map(parts => parts.reduce((s, p) => s + g.measureText(p.t).width, 0)));
+    if (widest > maxW) {
+      const k = maxW / widest; y = y - size * (1 - k) * .35; size = size * k;
+      g.font = `800 ${size}px "Barlow Condensed"`; g.letterSpacing = `${-0.015 * size}px`;
+    }
     lines.forEach((parts, i) => {
       const r = ease.out((reveal - i * .18) / .8);
       if (r <= 0) return;
